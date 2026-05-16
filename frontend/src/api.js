@@ -1,15 +1,12 @@
 import axios from 'axios'
 
-// Если мы залили сайт на Render, он возьмет реальный адрес.
-// Если мы запускаем на компе, он возьмет localhost:5000.
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'
+// Если мы на Render, берем ссылку из переменной, иначе localhost
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'
 
 export const api = axios.create({
-	baseURL: BASE_URL,
-	headers: { 'Content-Type': 'application/json' },
+	baseURL: API_URL,
 })
 
-// Автоматически добавляем JWT токен к каждому запросу
 api.interceptors.request.use(config => {
 	const token = localStorage.getItem('token')
 	if (token) {
