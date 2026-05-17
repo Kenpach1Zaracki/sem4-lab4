@@ -1,147 +1,93 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../db')
-const { authMiddleware, requireAdmin } = require('../middleware/auth')
+const { authMiddleware } = require('../middleware/auth')
 
-// Все роуты здесь требуют авторизации (токен)
 router.use(authMiddleware)
 
-// 1. ПОЛУЧИТЬ ВСЕ ИНЦИДЕНТЫ (GET)
-// Admin видит всё, investigator только свои, user - только сводку (здесь просто все)
+// 1. ПОЛУЧИТЬ ВСЕ (GET)
 router.get('/', async (req, res) => {
 	try {
-		let query
-		let params = []
-
-		if (req.user.role === 'investigator') {
-			// Расследователь видит только те инциденты, где он назначен
-			query = `
-        SELECT i.id, i.date, i.status, i.last_modified, 
-               it.danger_level AS severity, it.description AS type, 
-               s.description AS location, e.email AS assigned_to
-        FROM incidents i
-        LEFT JOIN incidenttypes it ON i.type_id = it.id
-        LEFT JOIN sources s ON s.incident_id = i.id
-        LEFT JOIN employees e ON e.incident_id = i.id
-        WHERE e.email = $1
-        ORDER BY i.date DESC
-      `
-			params = [req.user.email]
-		} else {
-			// Админ и обычный Юзер видят общий список
-			query = `
-        SELECT i.id, i.date, i.status, i.last_modified, 
-               it.danger_level AS severity, it.description AS type, 
-               s.description AS location, e.email AS assigned_to
-        FROM incidents i
-        LEFT JOIN incidenttypes it ON i.type_id = it.id
-        LEFT JOIN sources s ON s.incident_id = i.id
-        LEFT JOIN employees e ON e.incident_id = i.id
-        ORDER BY i.date DESC
-      `
-		}
-
-		const result = await pool.query(query, params)
-
-		// Форматируем для фронтенда
-		const incidents = result.rows.map(row => ({
-			id: row.id,
-			type: row.type ? row.type.trim() : 'Не указано',
-			location: row.location ? row.location.trim() : 'Не указано',
-			severity: row.severity ? row.severity.trim() : 'Низкий',
-			status: row.status ? row.status.trim() : 'Открыт',
-			assignedTo: row.assigned_to ? row.assigned_to.trim() : '',
-			date: row.date,
-		}))
-
-		res.json(incidents)
+		const result = await pool.query('SELECT * FROM incidents ORDER BY id DESC')
+		res.json(result.rows)
 	} catch (err) {
-		console.error(err)
-		res.status(500).json({ error: 'Ошибка получения инцидентов' })
+		res.status(500).json({ error: 'Ошибка БД' })
 	}
 })
 
-// 2. СОЗДАТЬ ИНЦИДЕНТ (POST) - Могут делать Admin или Investigator
+// 2. СОЗДАТЬ (POST)
 router.post('/', async (req, res) => {
-	if (req.user.role === 'user') {
-		return res
-			.status(403)
-			.json({ error: 'У вас нет прав на создание инцидента' })
-	}
+	if (req.user.role === 'user')
+		return res.status(403).json({ error: 'Нет прав' })
 
 	const { type, location, severity, status, assignedTo } = req.body
-	const client = await pool.connect()
-
 	try {
-		await client.query('BEGIN') // Начинаем транзакцию
-
-		// Ищем или создаем тип инцидента
-		const dangerLevel = severity || 'Низкий'
-		let typeRes = await client.query(
-			'SELECT id FROM incidenttypes WHERE danger_level = $1',
-			[dangerLevel.padEnd(50)],
+		const result = await pool.query(
+			'INSERT INTO incidents (type, location, severity, status, "assignedTo") VALUES ($1, $2, $3, $4, $5) RETURNING *',
+			[type, location, severity, status, assignedTo],
 		)
-		let typeId
-		if (typeRes.rows.length === 0) {
-			const newType = await client.query(
-				'INSERT INTO incidenttypes (danger_level, description) VALUES ($1, $2) RETURNING id',
-				[dangerLevel, type || 'Новый тип'],
-			)
-			typeId = newType.rows[0].id
-		} else {
-			typeId = typeRes.rows[0].id
-		}
-
-		// Создаем инцидент
-		const incRes = await client.query(
-			`INSERT INTO incidents (date, type_id, status) VALUES (NOW(), $1, $2) RETURNING id, date, status`,
-			[typeId, status || 'Открыт'],
-		)
-		const newIncident = incRes.rows[0]
-
-		// Создаем источник (Местоположение)
-		await client.query(
-			`INSERT INTO sources (source_type, incident_id, description) VALUES ('Система', $1, $2)`,
-			[newIncident.id, location || 'Неизвестно'],
-		)
-
-		// Назначаем сотрудника
-		if (assignedTo) {
-			await client.query(
-				`INSERT INTO employees (first_name, last_name, position, email, incident_id) 
-         VALUES ('Имя', 'Фамилия', 'Расследователь', $1, $2)`,
-				[assignedTo, newIncident.id],
-			)
-		}
-
-		await client.query('COMMIT') // Сохраняем транзакцию
-		res.status(201).json({ message: 'Инцидент создан', id: newIncident.id })
+		res.json(result.rows[0])
 	} catch (err) {
-		await client.query('ROLLBACK') // Отменяем в случае ошибки
-		console.error(err)
-		res.status(500).json({ error: 'Ошибка создания инцидента' })
-	} finally {
-		client.release()
+		res.status(500).json({ error: 'Ошибка БД' })
 	}
 })
 
-// 3. УДАЛИТЬ ИНЦИДЕНТ (DELETE) - Только Admin
-router.delete('/:id', requireAdmin, async (req, res) => {
+// 3. ОБНОВИТЬ (PUT)
+router.put('/:id', async (req, res) => {
+	const { type, location, severity, status, assignedTo } = req.body
 	try {
-		// Каскадное удаление уберет связанные записи из sources, employees
-		const result = await pool.query(
-			'DELETE FROM incidents WHERE id = $1 RETURNING id',
-			[req.params.id],
-		)
+		// Проверка прав
+		const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [
+			req.params.id,
+		])
+		if (check.rows.length === 0)
+			return res.status(404).json({ error: 'Не найден' })
 
-		if (result.rows.length === 0) {
-			return res.status(404).json({ error: 'Инцидент не найден' })
+		const incident = check.rows[0]
+		if (req.user.role === 'user')
+			return res.status(403).json({ error: 'Нет прав' })
+		if (
+			req.user.role === 'investigator' &&
+			incident.assignedTo !== req.user.email
+		) {
+			return res.status(403).json({ error: 'Вы не назначены на этот инцидент' })
 		}
 
-		res.json({ message: 'Инцидент удален' })
+		const result = await pool.query(
+			'UPDATE incidents SET type=$1, location=$2, severity=$3, status=$4, "assignedTo"=$5 WHERE id=$6 RETURNING *',
+			[type, location, severity, status, assignedTo, req.params.id],
+		)
+		res.json(result.rows[0])
 	} catch (err) {
-		console.error(err)
-		res.status(500).json({ error: 'Ошибка при удалении инцидента' })
+		res.status(500).json({ error: 'Ошибка БД' })
+	}
+})
+
+// 4. УДАЛИТЬ (DELETE)
+router.delete('/:id', async (req, res) => {
+	try {
+		const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [
+			req.params.id,
+		])
+		if (check.rows.length === 0)
+			return res.status(404).json({ error: 'Не найден' })
+
+		const incident = check.rows[0]
+		if (req.user.role === 'user')
+			return res.status(403).json({ error: 'Нет прав' })
+		if (
+			req.user.role === 'investigator' &&
+			incident.assignedTo !== req.user.email
+		) {
+			return res
+				.status(403)
+				.json({ error: 'Вы не можете удалить чужой инцидент' })
+		}
+
+		await pool.query('DELETE FROM incidents WHERE id = $1', [req.params.id])
+		res.json({ message: 'Удалено' })
+	} catch (err) {
+		res.status(500).json({ error: 'Ошибка БД' })
 	}
 })
 
