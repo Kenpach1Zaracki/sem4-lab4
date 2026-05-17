@@ -41,8 +41,12 @@ const FormPage = () => {
 				navigate('/')
 			})
 			.catch(err => {
-				console.error('ОШИБКА БД:', err)
-				setError(err.response?.data?.error || 'Ошибка при создании')
+				console.error('ОШИБКА БД ПОЛНАЯ:', err.response?.data)
+				const serverError = err.response?.data?.error
+				setError(
+					serverError ? `Ответ базы: ${serverError}` : 'Ошибка при создании',
+				)
+				alert(`Точная ошибка от базы: ${serverError}`) // Добавил алерт, чтобы точно не пропустить
 			})
 	}
 
