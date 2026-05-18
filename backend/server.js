@@ -1,12 +1,18 @@
 const express = require('express')
 const cors = require('cors')
+const helmet = require('helmet')
 const dotenv = require('dotenv')
 
 dotenv.config()
 
 const app = express()
 
-// ─── MIDDLEWARE ───
+// ─── MIDDLEWARE (БЕЗОПАСНОСТЬ) ───
+// Настройка Helmet для защиты от XSS, кликджекинга и сниффинга
+app.use(helmet())
+app.use(helmet.xssFilter()) // Явная защита от XSS атак
+app.use(helmet.hidePoweredBy()) // Скрываем от хакеров, что используем Express
+
 app.use(cors())
 app.use(express.json())
 
