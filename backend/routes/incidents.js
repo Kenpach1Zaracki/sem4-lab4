@@ -2,6 +2,18 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../db')
 const { authMiddleware } = require('../middleware/auth')
+const fs = require('fs')
+const path = require('path')
+
+// Функция резервного логирования в файл (Защита ИБ)
+const logToFile = (message) => {
+	const logPath = path.join(__dirname, '../../audit.log')
+	const time = new Date().toISOString()
+	const logString = `[${time}] SECURITY AUDIT: ${message}\n`
+	fs.appendFile(logPath, logString, (err) => {
+		if (err) console.error('Ошибка записи в audit.log', err)
+	})
+}
 
 router.use(authMiddleware)
 
@@ -25,8 +37,9 @@ router.post('/', async (req, res) => {
 		)
 		const newIncident = result.rows[0]
 		
-		// ЛОГ
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [`Пользователь ${req.user.email} создал инцидент #${newIncident.id} (${type})`])
+		const logMsg = `Пользователь ${req.user.email} создал инцидент #${newIncident.id} (${type})`
+		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
+		logToFile(logMsg) // Пишем в текстовый файл
 		
 		res.json(newIncident)
 	} catch (err) {
@@ -52,8 +65,9 @@ router.put('/:id', async (req, res) => {
 			[type, location, severity, status, assignedTo, req.params.id]
 		)
 		
-		// ЛОГ
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [`Пользователь ${req.user.email} отредактировал инцидент #${req.params.id}`])
+		const logMsg = `Пользователь ${req.user.email} отредактировал инцидент #${req.params.id}`
+		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
+		logToFile(logMsg) // Пишем в текстовый файл
 
 		res.json(result.rows[0])
 	} catch (err) {
@@ -64,8 +78,10 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
 	try {
 		await pool.query('DELETE FROM incidents WHERE id = $1', [req.params.id])
-		// ЛОГ
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [`Пользователь ${req.user.email} удалил инцидент #${req.params.id}`])
+		const logMsg = `Пользователь ${req.user.email} удалил инцидент #${req.params.id}`
+		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
+		logToFile(logMsg) // Пишем в текстовый файл
+		
 		res.json({ message: 'Удалено' })
 	} catch (err) {
 		res.status(500).json({ error: err.message })
