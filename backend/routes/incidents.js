@@ -9,7 +9,7 @@ const path = require('path')
 const logToFile = (message) => {
 	const logPath = path.join(__dirname, '../../audit.log')
 	const time = new Date().toISOString()
-	const logString = `[${time}] SECURITY AUDIT: ${message}\n`
+	const logString = `[${time}] AUDIT: ${message}\n`
 	fs.appendFile(logPath, logString, (err) => {
 		if (err) console.error('Ошибка записи в audit.log', err)
 	})
@@ -37,9 +37,10 @@ router.post('/', async (req, res) => {
 		)
 		const newIncident = result.rows[0]
 		
-		const logMsg = `Пользователь ${req.user.email} создал инцидент #${newIncident.id} (${type})`
+		// Подробный лог
+		const logMsg = `[CREATE] Пользователь ${req.user.email} создал инцидент #${newIncident.id} | Тип: ${type} | Уровень: ${severity} | Локация: ${location} | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
 		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
-		logToFile(logMsg) // Пишем в текстовый файл
+		logToFile(logMsg) 
 		
 		res.json(newIncident)
 	} catch (err) {
@@ -65,9 +66,10 @@ router.put('/:id', async (req, res) => {
 			[type, location, severity, status, assignedTo, req.params.id]
 		)
 		
-		const logMsg = `Пользователь ${req.user.email} отредактировал инцидент #${req.params.id}`
+		// Подробный лог
+		const logMsg = `[UPDATE] Пользователь ${req.user.email} обновил инцидент #${req.params.id} | Статус: ${status} | Уровень: ${severity} | Локация: ${location} | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
 		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
-		logToFile(logMsg) // Пишем в текстовый файл
+		logToFile(logMsg)
 
 		res.json(result.rows[0])
 	} catch (err) {
@@ -77,10 +79,17 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
 	try {
+		// Сначала получаем данные инцидента, чтобы записать их в лог перед удалением
+		const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [req.params.id])
+		if (check.rows.length === 0) return res.status(404).json({ error: 'Не найден' })
+		const inc = check.rows[0]
+
 		await pool.query('DELETE FROM incidents WHERE id = $1', [req.params.id])
-		const logMsg = `Пользователь ${req.user.email} удалил инцидент #${req.params.id}`
+		
+		// Подробный лог
+		const logMsg = `[DELETE] Пользователь ${req.user.email} удалил инцидент #${req.params.id} | Тип: ${inc.type} | Уровень: ${inc.severity} | Локация: ${inc.location}`
 		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
-		logToFile(logMsg) // Пишем в текстовый файл
+		logToFile(logMsg)
 		
 		res.json({ message: 'Удалено' })
 	} catch (err) {
