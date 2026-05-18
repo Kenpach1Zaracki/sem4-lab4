@@ -2,6 +2,8 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../db')
 const { authMiddleware, requireAdmin } = require('../middleware/auth')
+const fs = require('fs')
+const path = require('path')
 
 router.use(authMiddleware, requireAdmin)
 
@@ -25,10 +27,8 @@ router.put('/users/:id/role', async (req, res) => {
 	}
 })
 
-// ДОБАВЛЕНО УДАЛЕНИЕ ПОЛЬЗОВАТЕЛЕЙ
 router.delete('/users/:id', async (req, res) => {
 	try {
-		// Не даем админу удалить самого себя
 		if (parseInt(req.params.id) === req.user.id) {
 			return res.status(400).json({ error: 'Нельзя удалить свой собственный аккаунт' })
 		}
@@ -45,6 +45,21 @@ router.get('/logs', async (req, res) => {
 	try {
 		const result = await pool.query('SELECT * FROM logs ORDER BY id DESC LIMIT 100')
 		res.json(result.rows)
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
+})
+
+// НОВЫЙ ЭНДПОИНТ: Скачивание текстового файла с логами
+router.get('/audit-log/download', async (req, res) => {
+	try {
+		const logPath = path.join(__dirname, '../../audit.log')
+		if (fs.existsSync(logPath)) {
+			// Если файл существует - отдаем его на скачивание
+			res.download(logPath, 'security_audit.log')
+		} else {
+			res.status(404).json({ error: 'Файл логов пока пуст или не создан' })
+		}
 	} catch (err) {
 		res.status(500).json({ error: err.message })
 	}

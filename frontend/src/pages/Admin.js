@@ -33,6 +33,22 @@ const Admin = () => {
 		}
 	}
 
+	// Функция для скачивания файла логов
+	const handleDownloadLog = async () => {
+		try {
+			const response = await api.get('/api/admin/audit-log/download', { responseType: 'blob' })
+			// Создаем ссылку на скачивание прямо в браузере
+			const url = window.URL.createObjectURL(new Blob([response.data]))
+			const link = document.createElement('a')
+			link.href = url
+			link.setAttribute('download', 'security_audit.log')
+			document.body.appendChild(link)
+			link.click()
+		} catch (err) {
+			alert('Файл логов пока не создан. Отредактируйте или создайте инцидент, чтобы лог сгенерировался.')
+		}
+	}
+
 	return (
 		<div className='page'>
 			<Link to='/' className='back-link'>ТЕРМИНАЛ</Link>
@@ -65,7 +81,14 @@ const Admin = () => {
 
 				{/* ПРАВАЯ КОЛОНКА: ЛОГИ */}
 				<div className='form-card' style={{ padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '600px' }}>
-					<div className='form-label'>ЖУРНАЛ БЕЗОПАСНОСТИ (ЛОГИ)</div>
+					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+						<div className='form-label'>ЖУРНАЛ БЕЗОПАСНОСТИ</div>
+						
+						{/* КНОПКА СКАЧИВАНИЯ */}
+						<button onClick={handleDownloadLog} className='btn btn-primary' style={{ fontSize: '10px', padding: '4px 10px', fontWeight: 'bold' }}>
+							СКАЧАТЬ .LOG ФАЙЛ
+						</button>
+					</div>
 					<div style={{ overflowY: 'auto', marginTop: '16px', paddingRight: '8px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
 						{logs.length === 0 ? <div className='empty-state'>ЖУРНАЛ ПУСТ</div> : (
 							logs.map(log => (
