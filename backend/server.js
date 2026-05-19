@@ -2,17 +2,43 @@ const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 const dotenv = require('dotenv')
+const swaggerJsDoc = require('swagger-jsdoc')
+const swaggerUi = require('swagger-ui-express')
 
 dotenv.config()
 
 const app = express()
 
-// ─── MIDDLEWARE (БЕЗОПАСНОСТЬ) ───
-// Настройка Helmet для защиты от XSS, кликджекинга и сниффинга
-app.use(helmet())
-app.use(helmet.xssFilter()) // Явная защита от XSS атак
-app.use(helmet.hidePoweredBy()) // Скрываем от хакеров, что используем Express
+// ─── SWAGGER НАСТРОЙКИ (АВТОМАТИЧЕСКАЯ ДОКУМЕНТАЦИЯ API) ───
+const swaggerOptions = {
+	swaggerDefinition: {
+		openapi: '3.0.0',
+		info: {
+			title: 'SafeTrack API',
+			version: '1.0.0',
+			description: 'API для системы мониторинга и расследования инцидентов ИБ',
+		},
+		components: {
+			securitySchemes: {
+				bearerAuth: {
+					type: 'http',
+					scheme: 'bearer',
+					bearerFormat: 'JWT',
+				},
+			},
+		},
+		security: [{ bearerAuth: [] }],
+	},
+	apis: ['./routes/*.js'], // Парсит комментарии прямо из роутов
+}
+const swaggerDocs = swaggerJsDoc(swaggerOptions)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
 
+
+// ─── MIDDLEWARE (БЕЗОПАСНОСТЬ) ───
+app.use(helmet())
+app.use(helmet.xssFilter())
+app.use(helmet.hidePoweredBy())
 app.use(cors())
 app.use(express.json())
 
