@@ -7,6 +7,12 @@ const Home = () => {
 	const [incidents, setIncidents] = useState([])
 	const [error, setError] = useState(null)
 
+	// Состояния для фильтров и пагинации
+	const [filterStatus, setFilterStatus] = useState('all')
+	const [filterSeverity, setFilterSeverity] = useState('all')
+	const [currentPage, setCurrentPage] = useState(1)
+	const itemsPerPage = 5 // Показывать 5 элементов на страницу
+
 	const user = getUser()
 	const navigate = useNavigate()
 
@@ -22,19 +28,35 @@ const Home = () => {
 		navigate('/login')
 	}
 
-	// Привязываем уровни угрозы к твоим классам (low, mid, high)
 	const getSeverityClass = sev => {
 		if (sev === 'Высокий' || sev === 'Критический') return 'high'
 		if (sev === 'Средний') return 'mid'
 		return 'low'
 	}
 
-	// Привязываем статусы (reviewing, investigating, resolved)
 	const getStatusClass = status => {
 		if (status === 'Закрыт') return 'resolved'
 		if (status === 'В работе') return 'investigating'
 		return 'reviewing'
 	}
+
+	// 1. Фильтрация данных
+	const filteredIncidents = incidents.filter(inc => {
+		const matchStatus = filterStatus === 'all' || inc.status === filterStatus
+		const matchSeverity = filterSeverity === 'all' || inc.severity === filterSeverity
+		return matchStatus && matchSeverity
+	})
+
+	// 2. Пагинация данных
+	const indexOfLastItem = currentPage * itemsPerPage
+	const indexOfFirstItem = indexOfLastItem - itemsPerPage
+	const currentItems = filteredIncidents.slice(indexOfFirstItem, indexOfLastItem)
+	const totalPages = Math.ceil(filteredIncidents.length / itemsPerPage)
+
+	// Сброс страницы при изменении фильтров
+	useEffect(() => {
+		setCurrentPage(1)
+	}, [filterStatus, filterSeverity])
 
 	return (
 		<div className='page'>
@@ -66,22 +88,50 @@ const Home = () => {
 			<main>
 				{error && <div className='server-error'>{error}</div>}
 
-				<div className='toolbar'>
-					<div className='toolbar-left'>
-						БД ИНЦИДЕНТОВ // ЗАПИСЕЙ: {incidents.length}
+				<div className='toolbar' style={{ display: 'block' }}>
+					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+						<div className='toolbar-left'>
+							БД ИНЦИДЕНТОВ // ЗАПИСЕЙ: {filteredIncidents.length}
+						</div>
+						{user.role !== 'user' && (
+							<Link to='/create' className='btn btn-primary'>
+								+ НОВЫЙ ИНЦИДЕНТ
+							</Link>
+						)}
 					</div>
-					{user.role !== 'user' && (
-						<Link to='/create' className='btn btn-primary'>
-							+ НОВЫЙ ИНЦИДЕНТ
-						</Link>
-					)}
+					
+					{/* Блок фильтров */}
+					<div className='filters'>
+						<select 
+							className='form-select' 
+							value={filterStatus} 
+							onChange={(e) => setFilterStatus(e.target.value)}
+						>
+							<option value="all">Все статусы</option>
+							<option value="Открыт">Открыт</option>
+							<option value="В работе">В работе</option>
+							<option value="Закрыт">Закрыт</option>
+						</select>
+						
+						<select 
+							className='form-select' 
+							value={filterSeverity} 
+							onChange={(e) => setFilterSeverity(e.target.value)}
+						>
+							<option value="all">Любой уровень</option>
+							<option value="Низкий">Низкий</option>
+							<option value="Средний">Средний</option>
+							<option value="Высокий">Высокий</option>
+							<option value="Критический">Критический</option>
+						</select>
+					</div>
 				</div>
 
 				<div className='incident-list'>
-					{incidents.length === 0 ? (
-						<div className='empty-state'>Нет активных инцидентов</div>
+					{currentItems.length === 0 ? (
+						<div className='empty-state'>Нет записей по вашему запросу</div>
 					) : (
-						incidents.map(inc => (
+						currentItems.map(inc => (
 							<div
 								key={inc.id}
 								className='incident-item'
@@ -112,6 +162,27 @@ const Home = () => {
 						))
 					)}
 				</div>
+				
+				{/* Блок пагинации */}
+				{totalPages > 1 && (
+					<div className='pagination'>
+						<button 
+							className='btn btn-ghost' 
+							disabled={currentPage === 1}
+							onClick={() => setCurrentPage(prev => prev - 1)}
+						>
+							НАЗАД
+						</button>
+						<span> СТРАНИЦА {currentPage} ИЗ {totalPages} </span>
+						<button 
+							className='btn btn-ghost' 
+							disabled={currentPage === totalPages}
+							onClick={() => setCurrentPage(prev => prev + 1)}
+						>
+							ВПЕРЕД
+						</button>
+					</div>
+				)}
 			</main>
 		</div>
 	)
