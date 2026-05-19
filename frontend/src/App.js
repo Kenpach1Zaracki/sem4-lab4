@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
 	BrowserRouter as Router,
 	Routes,
@@ -12,15 +12,14 @@ import Detail from './pages/Detail'
 import FormPage from './pages/Form'
 import Admin from './pages/Admin'
 import { isLoggedIn, getUser } from './auth'
+import { ToastProvider, useToast } from './ToastContext'
+import { setGlobalToast } from './api'
 
-// Компонент-охранник для защиты роутов
+// Компонент-охранник
 const PrivateRoute = ({ children, allowedRoles }) => {
-	if (!isLoggedIn()) {
-		return <Navigate to='/login' /> // Если нет токена - на логин
-	}
+	if (!isLoggedIn()) return <Navigate to='/login' />
 
 	const user = getUser()
-	// Если у роута есть ограничения по ролям, и роли юзера там нет - на главную
 	if (allowedRoles && !allowedRoles.includes(user.role)) {
 		return <Navigate to='/' />
 	}
@@ -28,52 +27,58 @@ const PrivateRoute = ({ children, allowedRoles }) => {
 	return children
 }
 
+// Инициализация Toast-перехватчика для Axios
+const InitToast = () => {
+	const { showToast } = useToast()
+	useEffect(() => {
+		setGlobalToast(showToast)
+	}, [showToast])
+	return null
+}
+
 const App = () => {
 	return (
-		<Router>
-			<Routes>
-				<Route path='/login' element={<Login />} />
-				<Route path='/register' element={<Register />} />
-
-				{/* Доступно всем авторизованным */}
-				<Route
-					path='/'
-					element={
-						<PrivateRoute>
-							<Home />
-						</PrivateRoute>
-					}
-				/>
-				<Route
-					path='/incident/:id'
-					element={
-						<PrivateRoute>
-							<Detail />
-						</PrivateRoute>
-					}
-				/>
-
-				{/* Доступно только Админам и Расследователям */}
-				<Route
-					path='/create'
-					element={
-						<PrivateRoute allowedRoles={['admin', 'investigator']}>
-							<FormPage />
-						</PrivateRoute>
-					}
-				/>
-
-				{/* Доступно ТОЛЬКО Админу */}
-				<Route
-					path='/admin'
-					element={
-						<PrivateRoute allowedRoles={['admin']}>
-							<Admin />
-						</PrivateRoute>
-					}
-				/>
-			</Routes>
-		</Router>
+		<ToastProvider>
+			<InitToast />
+			<Router>
+				<Routes>
+					<Route path='/login' element={<Login />} />
+					<Route path='/register' element={<Register />} />
+					<Route
+						path='/'
+						element={
+							<PrivateRoute>
+								<Home />
+							</PrivateRoute>
+						}
+					/>
+					<Route
+						path='/incident/:id'
+						element={
+							<PrivateRoute>
+								<Detail />
+							</PrivateRoute>
+						}
+					/>
+					<Route
+						path='/create'
+						element={
+							<PrivateRoute allowedRoles={['admin', 'investigator']}>
+								<FormPage />
+							</PrivateRoute>
+						}
+					/>
+					<Route
+						path='/admin'
+						element={
+							<PrivateRoute allowedRoles={['admin']}>
+								<Admin />
+							</PrivateRoute>
+						}
+					/>
+				</Routes>
+			</Router>
+		</ToastProvider>
 	)
 }
 

@@ -2,9 +2,11 @@ import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api'
 import { sendRealEmail } from '../emailService'
+import { useToast } from '../ToastContext'
 
 const FormPage = () => {
 	const navigate = useNavigate()
+	const { showToast } = useToast()
 	const [form, setForm] = useState({
 		type: '',
 		location: '',
@@ -20,33 +22,25 @@ const FormPage = () => {
 	const handleSubmit = e => {
 		e.preventDefault()
 
-		console.log('ШАГ 1: Кнопка нажата. Отправляем инцидент в базу...')
-
 		api
 			.post('/api/incidents', form)
 			.then(res => {
-				console.log(
-					'ШАГ 2: База данных сохранила инцидент! Вызываем EmailJS...',
-				)
-
-				// Вызываем отправку письма (и ждем результат)
 				sendRealEmail('CREATE', {
 					...form,
 					description: 'Зафиксирована новая угроза безопасности',
-				}).then(result => {
-					console.log('ШАГ 3: Результат от EmailJS:', result)
-				})
+				}).catch(console.error)
 
-				// Возвращаемся на главную страницу
+				showToast('Инцидент успешно зарегистрирован!', 'success')
 				navigate('/')
 			})
 			.catch(err => {
-				console.error('ОШИБКА БД ПОЛНАЯ:', err.response?.data)
 				const serverError = err.response?.data?.error
-				setError(
-					serverError ? `Ответ базы: ${serverError}` : 'Ошибка при создании',
-				)
-				alert(`Точная ошибка от базы: ${serverError}`) // Добавил алерт, чтобы точно не пропустить
+				setError(serverError ? `Ответ базы: ${serverError}` : 'Ошибка при создании')
+				
+				// Если это не 403 (которая уже отловилась глобально)
+				if (err.response?.status !== 403) {
+					showToast(`Ошибка: ${serverError}`, 'error')
+				}
 			})
 	}
 

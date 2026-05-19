@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { getUser } from '../auth'
+import { useToast } from '../ToastContext'
 
 const Detail = () => {
 	const { id } = useParams()
 	const navigate = useNavigate()
 	const user = getUser()
+	const { showToast } = useToast()
 
 	const [incident, setIncident] = useState(null)
 	const [error, setError] = useState(null)
@@ -35,8 +37,16 @@ const Detail = () => {
 		if (window.confirm('Точно удалить эту запись?')) {
 			api
 				.delete(`/api/incidents/${id}`)
-				.then(() => navigate('/'))
-				.catch(err => alert(err.response?.data?.error || 'Ошибка при удалении'))
+				.then(() => {
+					showToast('Инцидент успешно удален', 'success')
+					navigate('/')
+				})
+				.catch(err => {
+					// 403 отлавливается глобально, но можем добавить фоллбэк
+					if (err.response?.status !== 403) {
+						showToast(err.response?.data?.error || 'Ошибка при удалении', 'error')
+					}
+				})
 		}
 	}
 
@@ -46,8 +56,13 @@ const Detail = () => {
 			.then(res => {
 				setIncident(res.data)
 				setIsEditing(false)
+				showToast('Изменения сохранены', 'success')
 			})
-			.catch(err => alert(err.response?.data?.error || 'Ошибка при сохранении'))
+			.catch(err => {
+				if (err.response?.status !== 403) {
+					showToast(err.response?.data?.error || 'Ошибка при сохранении', 'error')
+				}
+			})
 	}
 
 	if (error)
