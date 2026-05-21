@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const pool = require('../db')
-const { authMiddleware } = require('../middleware/auth')
+const { authMiddleware, requireRole } = require('../middleware/auth')
 const fs = require('fs')
 const path = require('path')
 
@@ -88,10 +88,7 @@ router.get('/', async (req, res) => {
  *       500:
  *         description: Ошибка сервера
  */
-router.post('/', async (req, res) => {
-	if (req.user.role === 'user')
-		return res.status(403).json({ error: 'Нет прав' })
-
+router.post('/', requireRole('admin', 'investigator'), async (req, res) => {
 	const { type, location, severity, status, assignedTo } = req.body
 	try {
 		const result = await pool.query(
@@ -156,7 +153,7 @@ router.post('/', async (req, res) => {
  *       500:
  *         description: Ошибка сервера
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
 	const { type, location, severity, status, assignedTo } = req.body
 	try {
 		const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [
@@ -166,9 +163,8 @@ router.put('/:id', async (req, res) => {
 			return res.status(404).json({ error: 'Не найден' })
 
 		const incident = check.rows[0]
-		if (req.user.role === 'user')
-			return res.status(403).json({ error: 'Нет прав' })
 
+		// Для investigator проверяем, назначен ли он на инцидент
 		if (
 			req.user.role === 'investigator' &&
 			incident.assignedTo !== req.user.email
@@ -198,7 +194,7 @@ router.put('/:id', async (req, res) => {
  * @swagger
  * /api/incidents/{id}:
  *   delete:
- *     summary: Удалить инцидент (доступ должен быть ограничен по ролям)
+ *     summary: Удалить инцидент (admin может любой, investigator только назначенный)
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
@@ -220,27 +216,41 @@ router.put('/:id', async (req, res) => {
  *       500:
  *         description: Ошибка сервера
  */
-router.delete('/:id', async (req, res) => {
-	try {
-		// Сначала получаем данные инцидента, чтобы записать их в лог перед удалением
-		const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [
-			req.params.id,
-		])
-		if (check.rows.length === 0)
-			return res.status(404).json({ error: 'Не найден' })
-		const inc = check.rows[0]
+router.delete(
+	'/:id',
+	requireRole('admin', 'investigator'),
+	async (req, res) => {
+		try {
+			// Сначала получаем данные инцидента, чтобы записать их в лог перед удалением
+			const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [
+				req.params.id,
+			])
+			if (check.rows.length === 0)
+				return res.status(404).json({ error: 'Не найден' })
+			const inc = check.rows[0]
 
-		await pool.query('DELETE FROM incidents WHERE id = $1', [req.params.id])
+			// Для investigator проверяем, назначен ли он на инцидент
+			if (
+				req.user.role === 'investigator' &&
+				inc.assignedTo !== req.user.email
+			) {
+				return res
+					.status(403)
+					.json({ error: 'Вы не назначены на этот инцидент' })
+			}
 
-		// Подробный лог
-		const logMsg = `[DELETE] Пользователь ${req.user.email} удалил инцидент #${req.params.id} | Тип: ${inc.type} | Уровень: ${inc.severity} | Локация: ${inc.location}`
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
-		logToFile(logMsg)
+			await pool.query('DELETE FROM incidents WHERE id = $1', [req.params.id])
 
-		res.json({ message: 'Удалено' })
-	} catch (err) {
-		res.status(500).json({ error: err.message })
-	}
-})
+			// Подробный лог
+			const logMsg = `[DELETE] Пользователь ${req.user.email} удалил инцидент #${req.params.id} | Тип: ${inc.type} | Уровень: ${inc.severity} | Локация: ${inc.location}`
+			await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
+			logToFile(logMsg)
+
+			res.json({ message: 'Удалено' })
+		} catch (err) {
+			res.status(500).json({ error: err.message })
+		}
+	},
+)
 
 module.exports = router

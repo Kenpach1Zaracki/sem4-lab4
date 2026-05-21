@@ -14,14 +14,14 @@ const authMiddleware = (req, res, next) => {
 
 	try {
 		const decoded = jwt.verify(token, process.env.JWT_SECRET)
-		req.user = decoded // Сохраняем данные пользователя из токена
-		next() // Пропускаем дальше
+		req.user = decoded
+		next()
 	} catch (err) {
 		return res.status(401).json({ error: 'Токен недействителен или истёк' })
 	}
 }
 
-// Проверка роли: только админ
+// Только админ
 const requireAdmin = (req, res, next) => {
 	if (req.user.role !== 'admin') {
 		return res
@@ -31,4 +31,14 @@ const requireAdmin = (req, res, next) => {
 	next()
 }
 
-module.exports = { authMiddleware, requireAdmin }
+// Универсальная проверка ролей
+const requireRole =
+	(...roles) =>
+	(req, res, next) => {
+		if (!req.user || !roles.includes(req.user.role)) {
+			return res.status(403).json({ error: 'Недостаточно прав' })
+		}
+		next()
+	}
+
+module.exports = { authMiddleware, requireAdmin, requireRole }
