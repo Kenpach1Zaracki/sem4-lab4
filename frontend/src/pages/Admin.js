@@ -2,11 +2,40 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useToast } from '../ToastContext'
+import ConfirmModal from '../components/ConfirmModal'
 
 const Admin = () => {
 	const [users, setUsers] = useState([])
 	const [logs, setLogs] = useState([])
 	const { showToast } = useToast()
+	const [confirmState, setConfirmState] = useState({
+		isOpen: false,
+		title: '',
+		message: '',
+		confirmText: 'Подтвердить',
+		danger: false,
+		onConfirm: null,
+	})
+	const openConfirm = ({
+		title,
+		message,
+		confirmText,
+		danger = false,
+		onConfirm,
+	}) => {
+		setConfirmState({
+			isOpen: true,
+			title,
+			message,
+			confirmText: confirmText || 'Подтвердить',
+			danger,
+			onConfirm,
+		})
+	}
+
+	const closeConfirm = () => {
+		setConfirmState(prev => ({ ...prev, isOpen: false, onConfirm: null }))
+	}
 
 	useEffect(() => {
 		loadData()
@@ -24,27 +53,48 @@ const Admin = () => {
 	}
 
 	const handleRoleChange = (id, newRole) => {
-		if (window.confirm(`Подтвердите смену уровня доступа на ${newRole}`)) {
-			api
-				.put(`/api/admin/users/${id}/role`, { role: newRole })
-				.then(() => {
-					loadData() // Перезагружаем чтобы логи обновились
-				})
-				.catch(err => {
-					showToast('Ошибка при смене роли', 'error')
-				})
-		}
+		openConfirm({
+			title: 'Смена роли',
+			message: `Подтвердите смену уровня доступа на ${newRole}`,
+			confirmText: 'Изменить',
+			danger: false,
+			onConfirm: () => {
+				closeConfirm()
+				api
+					.put(`/api/admin/users/${id}/role`, { role: newRole })
+					.then(() => {
+						loadData()
+						showToast('Роль обновлена', 'success')
+					})
+					.catch(() => {
+						showToast('Ошибка при смене роли', 'error')
+					})
+			},
+		})
 	}
 
 	const handleDeleteUser = id => {
-		if (window.confirm('ТОЧНО удалить этого пользователя навсегда?')) {
-			api
-				.delete(`/api/admin/users/${id}`)
-				.then(() => loadData())
-				.catch(err => {
-					showToast(err.response?.data?.error || 'Ошибка при удалении', 'error')
-				})
-		}
+		openConfirm({
+			title: 'Удаление пользователя',
+			message: 'ТОЧНО удалить этого пользователя навсегда?',
+			confirmText: 'Удалить',
+			danger: true,
+			onConfirm: () => {
+				closeConfirm()
+				api
+					.delete(`/api/admin/users/${id}`)
+					.then(() => {
+						loadData()
+						showToast('Пользователь удалён', 'success')
+					})
+					.catch(err => {
+						showToast(
+							err.response?.data?.error || 'Ошибка при удалении',
+							'error',
+						)
+					})
+			},
+		})
 	}
 
 	// Функция для скачивания файла логов
@@ -214,6 +264,15 @@ const Admin = () => {
 					</div>
 				</div>
 			</div>
+			<ConfirmModal
+				isOpen={confirmState.isOpen}
+				title={confirmState.title}
+				message={confirmState.message}
+				confirmText={confirmState.confirmText}
+				danger={confirmState.danger}
+				onCancel={closeConfirm}
+				onConfirm={() => confirmState.onConfirm && confirmState.onConfirm()}
+			/>
 		</div>
 	)
 }

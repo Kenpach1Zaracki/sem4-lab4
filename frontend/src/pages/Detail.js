@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { getUser } from '../auth'
 import { useToast } from '../ToastContext'
+import ConfirmModal from '../components/ConfirmModal'
 
 const Detail = () => {
 	const { id } = useParams()
@@ -14,6 +15,7 @@ const Detail = () => {
 	const [error, setError] = useState(null)
 	const [isEditing, setIsEditing] = useState(false)
 	const [formData, setFormData] = useState({})
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
 	useEffect(() => {
 		api
@@ -33,21 +35,25 @@ const Detail = () => {
 		user.role === 'admin' ||
 		(user.role === 'investigator' && incident?.assignedTo === user.email)
 
-	const handleDelete = () => {
-		if (window.confirm('Точно удалить эту запись?')) {
-			api
-				.delete(`/api/incidents/${id}`)
-				.then(() => {
-					showToast('Инцидент успешно удален', 'success')
-					navigate('/')
-				})
-				.catch(err => {
-					// 403 отлавливается глобально, но можем добавить фоллбэк
-					if (err.response?.status !== 403) {
-						showToast(err.response?.data?.error || 'Ошибка при удалении', 'error')
-					}
-				})
-		}
+	const handleDeleteClick = () => {
+		setIsDeleteModalOpen(true)
+	}
+
+	const confirmDelete = () => {
+		setIsDeleteModalOpen(false)
+
+		api
+			.delete(`/api/incidents/${id}`)
+			.then(() => {
+				showToast('Инцидент успешно удален', 'success')
+				navigate('/')
+			})
+			.catch(err => {
+				// 403 отлавливается глобально, но можем добавить фоллбэк
+				if (err.response?.status !== 403) {
+					showToast(err.response?.data?.error || 'Ошибка при удалении', 'error')
+				}
+			})
 	}
 
 	const handleSave = () => {
@@ -60,7 +66,10 @@ const Detail = () => {
 			})
 			.catch(err => {
 				if (err.response?.status !== 403) {
-					showToast(err.response?.data?.error || 'Ошибка при сохранении', 'error')
+					showToast(
+						err.response?.data?.error || 'Ошибка при сохранении',
+						'error',
+					)
 				}
 			})
 	}
@@ -110,7 +119,7 @@ const Detail = () => {
 								РЕДАКТИРОВАТЬ
 							</button>
 						)}
-						<button onClick={handleDelete} className='btn btn-danger'>
+						<button onClick={handleDeleteClick} className='btn btn-danger'>
 							УДАЛИТЬ
 						</button>
 					</div>
@@ -217,6 +226,16 @@ const Detail = () => {
 					</>
 				)}
 			</div>
+			<ConfirmModal
+				isOpen={isDeleteModalOpen}
+				title='Удаление инцидента'
+				message={`Точно удалить инцидент #${incident.id}? Это действие необратимо.`}
+				confirmText='Удалить'
+				cancelText='Отмена'
+				danger={true}
+				onCancel={() => setIsDeleteModalOpen(false)}
+				onConfirm={confirmDelete}
+			/>
 		</div>
 	)
 }
