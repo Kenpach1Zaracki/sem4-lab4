@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&family=Share+Tech+Mono&display=swap');
 
 :root {
 	--bg: #0a0a0a;
@@ -6,16 +6,16 @@
 	--text-primary: #ffffff;
 	--text-secondary: #888888;
 	--text-muted: #555555;
-	--accent: #ff4d00;
-	--accent-glow: rgba(255, 77, 0, 0.4);
-	--danger: #ff3b3b;
-	--danger-glow: rgba(255, 59, 59, 0.3);
-	--warning: #ffb800;
+	--accent: #00ffcc;
+	--accent-glow: rgba(0, 255, 204, 0.3);
+	--danger: #ff0055;
+	--danger-glow: rgba(255, 0, 85, 0.3);
+	--warning: #ffcc00;
 	--border: #222222;
 
-	--font-main: 'IBM Plex Sans', sans-serif;
-	--font-head: 'Bebas Neue', sans-serif;
-	--font-mono: 'IBM Plex Mono', monospace;
+	--font-main: 'Rajdhani', sans-serif;
+	--font-head: 'Orbitron', sans-serif;
+	--font-mono: 'Share Tech Mono', monospace;
 }
 
 * {
@@ -40,9 +40,10 @@ body::before {
 	left: 0;
 	width: 100vw;
 	height: 100vh;
-	background-image: linear-gradient(rgba(255,77,0,0.03) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(255,77,0,0.03) 1px, transparent 1px);
-	background-size: 40px 40px;
+	background-image: linear-gradient(var(--border) 1px, transparent 1px),
+		linear-gradient(90deg, var(--border) 1px, transparent 1px);
+	background-size: 50px 50px;
+	opacity: 0.15;
 	z-index: -1;
 	pointer-events: none;
 }
@@ -70,7 +71,7 @@ a {
 
 .header h1 {
 	font-family: var(--font-head);
-	font-size: 42px;
+	font-size: 32px;
 	letter-spacing: 2px;
 	margin: 0;
 }
@@ -112,20 +113,20 @@ a {
 
 .role-tag.admin {
 	color: var(--accent);
-	background: rgba(255, 77, 0, 0.1);
+	background: rgba(0, 255, 204, 0.1);
 	border: 1px solid var(--accent);
 }
 
 .role-tag.investigator {
 	color: var(--warning);
-	background: rgba(255, 184, 0, 0.1);
+	background: rgba(255, 204, 0, 0.1);
 	border: 1px solid var(--warning);
 }
 
 /* ─── КНОПКИ ─── */
 .btn {
 	font-family: var(--font-head);
-	font-size: 14px;
+	font-size: 12px;
 	letter-spacing: 1px;
 	padding: 8px 16px;
 	border: 1px solid transparent;
@@ -291,7 +292,7 @@ a {
 /* ─── ФОРМЫ (СТРОГИЙ СТИЛЬ) ─── */
 .form-page-title {
 	font-family: var(--font-head);
-	font-size: 28px;
+	font-size: 24px;
 	margin-bottom: 5px;
 }
 .form-page-title span {
@@ -309,6 +310,28 @@ a {
 	border: 1px solid var(--border);
 	padding: 30px;
 	position: relative;
+}
+
+/* Уголки как в Sci-Fi интерфейсах */
+.form-card::before,
+.form-card::after {
+	content: '';
+	position: absolute;
+	width: 10px;
+	height: 10px;
+	border: 1px solid var(--accent);
+}
+.form-card::before {
+	top: -1px;
+	left: -1px;
+	border-right: none;
+	border-bottom: none;
+}
+.form-card::after {
+	bottom: -1px;
+	right: -1px;
+	border-left: none;
+	border-top: none;
 }
 
 .form-row {
@@ -382,7 +405,7 @@ a {
 }
 
 .server-error {
-	background: rgba(255, 59, 59, 0.1);
+	background: rgba(255, 0, 85, 0.1);
 	border-left: 4px solid var(--danger);
 	color: var(--danger);
 	padding: 10px 15px;
@@ -441,29 +464,4 @@ a {
 		transform: translateX(0);
 		opacity: 1;
 	}
-}
-
-/* ─── ФИЛЬТРЫ И ПАГИНАЦИЯ ─── */
-.filters {
-	display: flex;
-	gap: 15px;
-	margin-top: 15px;
-	align-items: center;
-}
-.filters .form-select {
-	padding: 6px 10px;
-	font-size: 14px;
-}
-
-.pagination {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	gap: 10px;
-	margin-top: 20px;
-	font-family: var(--font-mono);
-}
-.pagination span {
-	font-size: 12px;
-	color: var(--text-muted);
 }
