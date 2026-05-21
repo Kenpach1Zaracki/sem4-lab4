@@ -11,7 +11,7 @@ const poolConfig = process.env.DATABASE_URL
 			user: 'postgres',
 			host: 'localhost',
 			database: 'safetrack',
-			password: 'твой_пароль_от_локальной_бд', // Замени на свой, если нужно для локалхоста
+			password: process.env.DB_PASSWORD,
 			port: 5432,
 		}
 
