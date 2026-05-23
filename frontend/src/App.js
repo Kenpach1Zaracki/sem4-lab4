@@ -15,6 +15,7 @@ import Admin from './pages/Admin'
 import { isLoggedIn, getUser } from './auth'
 import { ToastProvider, useToast } from './ToastContext'
 import { setGlobalToast } from './api'
+import Dataset from './pages/Dataset'
 
 // Компонент-охранник
 const PrivateRoute = ({ children, allowedRoles }) => {
@@ -82,6 +83,14 @@ const App = () => {
 						element={
 							<PrivateRoute>
 								<Dashboard />
+							</PrivateRoute>
+						}
+					/>
+					<Route
+						path='/dataset'
+						element={
+							<PrivateRoute allowedRoles={['admin', 'investigator']}>
+								<Dataset />
 							</PrivateRoute>
 						}
 					/>

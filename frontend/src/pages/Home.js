@@ -85,6 +85,12 @@ const Home = () => {
 								АДМИНКА
 							</Link>
 						)}
+						{/* НОВАЯ КНОПКА ИМПОРТ CSV */}
+						{user.role !== 'user' && (
+							<Link to='/dataset' className='btn btn-ghost'>
+								ИМПОРТ CSV
+							</Link>
+						)}
 						<button onClick={handleLogout} className='btn btn-logout'>
 							ВЫХОД
 						</button>

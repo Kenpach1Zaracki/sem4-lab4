@@ -50,6 +50,7 @@ app.use('/api/incidents', require('./routes/incidents'))
 app.use('/api/admin', require('./routes/admin'))
 app.use('/api/analytics', require('./routes/analytics'))
 app.use('/api', require('./routes/comments'))
+app.use('/api/dataset', require('./routes/dataset'))
 
 // ─── ПРОСТОЙ ТЕСТОВЫЙ РОУТ ───
 app.get('/api/health', (req, res) => {
