@@ -34,7 +34,6 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
 
-
 // ─── MIDDLEWARE (БЕЗОПАСНОСТЬ) ───
 app.use(helmet())
 app.use(helmet.xssFilter())
@@ -49,6 +48,7 @@ require('./db')
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/incidents', require('./routes/incidents'))
 app.use('/api/admin', require('./routes/admin'))
+app.use('/api/analytics', require('./routes/analytics'))
 
 // ─── ПРОСТОЙ ТЕСТОВЫЙ РОУТ ───
 app.get('/api/health', (req, res) => {

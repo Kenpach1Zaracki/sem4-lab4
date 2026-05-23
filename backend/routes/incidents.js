@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const pool = require('../db')
 const { authMiddleware, requireRole } = require('../middleware/auth')
+const { calculateRisk } = require('../utils/riskCalculator')
 const fs = require('fs')
 const path = require('path')
 
@@ -9,7 +10,7 @@ const path = require('path')
  * @swagger
  * tags:
  *   name: Incidents
- *   description: Управление инцидентами ИБ (CRUD)
+ *   description: Управление инцидентами ИБ (CRUD) + Risk Calculator
  */
 
 // Функция резервного логирования в файл (Защита ИБ)
@@ -28,21 +29,25 @@ router.use(authMiddleware)
  * @swagger
  * /api/incidents:
  *   get:
- *     summary: Получить список инцидентов
+ *     summary: Получить список инцидентов (user видит только свои)
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Список инцидентов
- *       401:
- *         description: Нет токена или токен недействителен
- *       500:
- *         description: Ошибка сервера
  */
 router.get('/', async (req, res) => {
 	try {
-		const result = await pool.query('SELECT * FROM incidents ORDER BY id DESC')
+		let result
+		if (req.user.role === 'user') {
+			result = await pool.query(
+				'SELECT * FROM incidents WHERE created_by = $1 ORDER BY id DESC',
+				[req.user.email],
+			)
+		} else {
+			result = await pool.query('SELECT * FROM incidents ORDER BY id DESC')
+		}
 		res.json(result.rows)
 	} catch (err) {
 		res.status(500).json({ error: err.message })
@@ -53,55 +58,49 @@ router.get('/', async (req, res) => {
  * @swagger
  * /api/incidents:
  *   post:
- *     summary: Создать новый инцидент (только admin/investigator)
+ *     summary: Создать новый инцидент + авто-расчёт риска
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [type, location, severity, status]
- *             properties:
- *               type:
- *                 type: string
- *               location:
- *                 type: string
- *               severity:
- *                 type: string
- *                 example: "Низкий"
- *               status:
- *                 type: string
- *                 example: "Открыт"
- *               assignedTo:
- *                 type: string
- *                 description: Email назначенного специалиста
- *     responses:
- *       200:
- *         description: Созданный инцидент
- *       401:
- *         description: Нет токена или токен недействителен
- *       403:
- *         description: Недостаточно прав
- *       500:
- *         description: Ошибка сервера
  */
 router.post('/', requireRole('admin', 'investigator'), async (req, res) => {
 	const { type, location, severity, status, assignedTo } = req.body
+
+	if (!type || !location || !severity) {
+		return res
+			.status(400)
+			.json({ error: 'Поля type, location, severity обязательны' })
+	}
+
 	try {
+		// RISK CALCULATOR
+		const risk = calculateRisk({ type, location, severity })
+
 		const result = await pool.query(
-			'INSERT INTO incidents (type, location, severity, status, "assignedTo") VALUES ($1, $2, $3, $4, $5) RETURNING *',
-			[type, location, severity, status, assignedTo],
+			`INSERT INTO incidents (type, location, severity, status, "assignedTo", created_by, 
+			 risk_score, risk_level, detection_reason, is_suspicious, analyzed_at) 
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+			[
+				type,
+				location,
+				severity,
+				status || 'Открыт',
+				assignedTo,
+				req.user.email,
+				risk.risk_score,
+				risk.risk_level,
+				risk.detection_reason,
+				risk.is_suspicious,
+				risk.analyzed_at,
+			],
 		)
 		const newIncident = result.rows[0]
 
-		// Подробный лог
-		const logMsg = `[CREATE] Пользователь ${req.user.email} создал инцидент #${newIncident.id} | Тип: ${type} | Уровень: ${severity} | Локация: ${location} | Назначен: ${
-			assignedTo || 'НЕ НАЗНАЧЕН'
-		}`
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
+		const logMsg = `[CREATE] ${req.user.email} создал инцидент #${newIncident.id} | Тип: ${type} | Уровень: ${severity} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Локация: ${location} | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
+		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
+			logMsg,
+			req.user.email,
+		])
 		logToFile(logMsg)
 
 		res.json(newIncident)
@@ -114,47 +113,20 @@ router.post('/', requireRole('admin', 'investigator'), async (req, res) => {
  * @swagger
  * /api/incidents/{id}:
  *   put:
- *     summary: Обновить инцидент (admin или investigator назначенный на инцидент)
+ *     summary: Обновить инцидент + пересчёт риска
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               type:
- *                 type: string
- *               location:
- *                 type: string
- *               severity:
- *                 type: string
- *               status:
- *                 type: string
- *               assignedTo:
- *                 type: string
- *     responses:
- *       200:
- *         description: Обновлённый инцидент
- *       401:
- *         description: Нет токена или токен недействителен
- *       403:
- *         description: Недостаточно прав
- *       404:
- *         description: Инцидент не найден
- *       500:
- *         description: Ошибка сервера
  */
 router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
 	const { type, location, severity, status, assignedTo } = req.body
+
+	if (!type || !location || !severity) {
+		return res
+			.status(400)
+			.json({ error: 'Поля type, location, severity обязательны' })
+	}
+
 	try {
 		const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [
 			req.params.id,
@@ -164,7 +136,6 @@ router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
 
 		const incident = check.rows[0]
 
-		// Для investigator проверяем, назначен ли он на инцидент
 		if (
 			req.user.role === 'investigator' &&
 			incident.assignedTo !== req.user.email
@@ -172,16 +143,33 @@ router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
 			return res.status(403).json({ error: 'Вы не назначены на этот инцидент' })
 		}
 
+		// RISK CALCULATOR
+		const risk = calculateRisk({ type, location, severity })
+
 		const result = await pool.query(
-			'UPDATE incidents SET type=$1, location=$2, severity=$3, status=$4, "assignedTo"=$5 WHERE id=$6 RETURNING *',
-			[type, location, severity, status, assignedTo, req.params.id],
+			`UPDATE incidents SET type=$1, location=$2, severity=$3, status=$4, "assignedTo"=$5,
+			 risk_score=$6, risk_level=$7, detection_reason=$8, is_suspicious=$9, analyzed_at=$10
+			 WHERE id=$11 RETURNING *`,
+			[
+				type,
+				location,
+				severity,
+				status,
+				assignedTo,
+				risk.risk_score,
+				risk.risk_level,
+				risk.detection_reason,
+				risk.is_suspicious,
+				risk.analyzed_at,
+				req.params.id,
+			],
 		)
 
-		// Подробный лог
-		const logMsg = `[UPDATE] Пользователь ${req.user.email} обновил инцидент #${req.params.id} | Статус: ${status} | Уровень: ${severity} | Локация: ${location} | Назначен: ${
-			assignedTo || 'НЕ НАЗНАЧЕН'
-		}`
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
+		const logMsg = `[UPDATE] ${req.user.email} обновил инцидент #${req.params.id} | Статус: ${status} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
+		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
+			logMsg,
+			req.user.email,
+		])
 		logToFile(logMsg)
 
 		res.json(result.rows[0])
@@ -194,34 +182,16 @@ router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
  * @swagger
  * /api/incidents/{id}:
  *   delete:
- *     summary: Удалить инцидент (admin может любой, investigator только назначенный)
+ *     summary: Удалить инцидент
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Инцидент удалён
- *       401:
- *         description: Нет токена или токен недействителен
- *       403:
- *         description: Недостаточно прав
- *       404:
- *         description: Инцидент не найден
- *       500:
- *         description: Ошибка сервера
  */
 router.delete(
 	'/:id',
 	requireRole('admin', 'investigator'),
 	async (req, res) => {
 		try {
-			// Сначала получаем данные инцидента, чтобы записать их в лог перед удалением
 			const check = await pool.query('SELECT * FROM incidents WHERE id = $1', [
 				req.params.id,
 			])
@@ -229,7 +199,6 @@ router.delete(
 				return res.status(404).json({ error: 'Не найден' })
 			const inc = check.rows[0]
 
-			// Для investigator проверяем, назначен ли он на инцидент
 			if (
 				req.user.role === 'investigator' &&
 				inc.assignedTo !== req.user.email
@@ -241,9 +210,11 @@ router.delete(
 
 			await pool.query('DELETE FROM incidents WHERE id = $1', [req.params.id])
 
-			// Подробный лог
-			const logMsg = `[DELETE] Пользователь ${req.user.email} удалил инцидент #${req.params.id} | Тип: ${inc.type} | Уровень: ${inc.severity} | Локация: ${inc.location}`
-			await pool.query('INSERT INTO logs (action) VALUES ($1)', [logMsg])
+			const logMsg = `[DELETE] ${req.user.email} удалил инцидент #${req.params.id} | Тип: ${inc.type} | Риск был: ${inc.risk_score || 0}/100`
+			await pool.query(
+				'INSERT INTO logs (action, user_email) VALUES ($1, $2)',
+				[logMsg, req.user.email],
+			)
 			logToFile(logMsg)
 
 			res.json({ message: 'Удалено' })
