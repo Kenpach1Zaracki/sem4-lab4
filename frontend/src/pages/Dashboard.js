@@ -76,6 +76,7 @@ const Timeline = () => {
 const Dashboard = () => {
 	const [data, setData] = useState(null)
 	const [loading, setLoading] = useState(true)
+	const [logs, setLogs] = useState([])
 
 	useEffect(() => {
 		api
@@ -84,6 +85,31 @@ const Dashboard = () => {
 			.catch(console.error)
 			.finally(() => setLoading(false))
 	}, [])
+
+	// Загрузка последних действий
+	useEffect(() => {
+		api
+			.get('/api/admin/logs')
+			.then(res => setLogs(res.data.slice(0, 5)))
+			.catch(console.error)
+	}, [])
+
+	// Функция экспорта CSV
+	const handleExport = () => {
+		api
+			.get('/api/dataset/export', { responseType: 'blob' })
+			.then(res => {
+				const url = window.URL.createObjectURL(new Blob([res.data]))
+				const link = document.createElement('a')
+				link.href = url
+				link.setAttribute('download', 'incidents_export.csv')
+				document.body.appendChild(link)
+				link.click()
+				document.body.removeChild(link)
+				window.URL.revokeObjectURL(url)
+			})
+			.catch(err => console.error('Ошибка экспорта:', err))
+	}
 
 	if (loading)
 		return (
@@ -122,6 +148,15 @@ const Dashboard = () => {
 			<Link to='/' className='back-link'>
 				ТЕРМИНАЛ
 			</Link>
+
+			{/* КНОПКА ЭКСПОРТА CSV */}
+			<button
+				onClick={handleExport}
+				className='btn btn-primary'
+				style={{ float: 'right', marginTop: '-10px' }}
+			>
+				ЭКСПОРТ CSV
+			</button>
 
 			<div className='form-page-title'>
 				ЦЕНТР <span>АНАЛИТИКИ</span>
@@ -274,7 +309,7 @@ const Dashboard = () => {
 							>
 								<span style={{ color: 'var(--text-primary)' }}>
 									<span style={{ color: 'var(--accent)', marginRight: '8px' }}>
-										0{i + 1}
+										{String(i + 1).padStart(2, '0')}
 									</span>
 									{item.type}
 								</span>
@@ -336,12 +371,42 @@ const Dashboard = () => {
 					</div>
 				)}
 			</div>
+
 			{/* ТАЙМЛАЙН */}
 			<div className='form-card' style={{ padding: '24px', marginTop: '24px' }}>
 				<div className='form-label' style={{ marginBottom: '16px' }}>
 					АКТИВНОСТЬ ЗА 24 ЧАСА
 				</div>
 				<Timeline />
+			</div>
+
+			{/* ПОСЛЕДНИЕ ДЕЙСТВИЯ */}
+			<div className='form-card' style={{ padding: '24px', marginTop: '24px' }}>
+				<div className='form-label' style={{ marginBottom: '16px' }}>
+					ПОСЛЕДНИЕ ДЕЙСТВИЯ
+				</div>
+				{logs.length === 0 ? (
+					<div className='empty-state'>Нет записей</div>
+				) : (
+					logs.map(log => (
+						<div
+							key={log.id}
+							style={{
+								borderBottom: '1px dashed var(--border)',
+								padding: '8px 0',
+								fontFamily: 'var(--font-mono)',
+								fontSize: '11px',
+							}}
+						>
+							<span style={{ color: 'var(--text-muted)' }}>
+								[{new Date(log.created_at).toLocaleString()}]
+							</span>
+							<span style={{ color: 'var(--accent)', marginLeft: '8px' }}>
+								{log.action}
+							</span>
+						</div>
+					))
+				)}
 			</div>
 		</div>
 	)

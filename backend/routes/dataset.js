@@ -87,6 +87,31 @@ router.post(
 	},
 )
 
+// GET /api/dataset/export — экспорт всех инцидентов в CSV
+router.get('/export', async (req, res) => {
+	try {
+		const result = await pool.query('SELECT * FROM incidents ORDER BY id DESC')
+
+		const header =
+			'id,type,location,severity,status,assignedTo,risk_score,risk_level,is_suspicious,created_at\n'
+		const rows = result.rows
+			.map(
+				inc =>
+					`"${inc.id}","${inc.type}","${inc.location}","${inc.severity}","${inc.status}","${inc.assignedTo || ''}","${inc.risk_score}","${inc.risk_level}","${inc.is_suspicious}","${inc.created_at}"`,
+			)
+			.join('\n')
+
+		res.setHeader('Content-Type', 'text/csv')
+		res.setHeader(
+			'Content-Disposition',
+			'attachment; filename="incidents_export.csv"',
+		)
+		res.send(header + rows)
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
+})
+
 // GET /api/dataset/sample — скачать пример CSV
 router.get('/sample', async (req, res) => {
 	const sample = `type,location,severity,status,assignedTo

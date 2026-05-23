@@ -28,8 +28,11 @@ const Home = () => {
 		navigate('/login')
 	}
 
-	const getSeverityClass = sev => {
-		if (sev === 'Высокий' || sev === 'Критический') return 'high'
+	// Обновленная функция getSeverityClass с учетом riskLevel
+	const getSeverityClass = (sev, riskLevel) => {
+		if (riskLevel === 'critical') return 'high'
+		if (riskLevel === 'high') return 'mid'
+		if (sev === 'Критический' || sev === 'Высокий') return 'high'
 		if (sev === 'Средний') return 'mid'
 		return 'low'
 	}
@@ -39,6 +42,13 @@ const Home = () => {
 		if (status === 'В работе') return 'investigating'
 		return 'reviewing'
 	}
+
+	// Подсчет статистики для шапки
+	const totalIncidents = incidents.length
+	const suspiciousCount = incidents.filter(i => i.is_suspicious).length
+	const criticalCount = incidents.filter(
+		i => i.risk_level === 'critical',
+	).length
 
 	// 1. Фильтрация данных
 	const filteredIncidents = incidents.filter(inc => {
@@ -114,7 +124,8 @@ const Home = () => {
 						}}
 					>
 						<div className='toolbar-left'>
-							БД ИНЦИДЕНТОВ // ЗАПИСЕЙ: {filteredIncidents.length}
+							БД ИНЦИДЕНТОВ // ВСЕГО: {totalIncidents} | ПОДОЗРИТЕЛЬНЫХ:{' '}
+							{suspiciousCount} | КРИТИЧЕСКИХ: {criticalCount}
 						</div>
 						{user.role !== 'user' && (
 							<Link to='/create' className='btn btn-primary'>
@@ -160,8 +171,9 @@ const Home = () => {
 								className='incident-item'
 								onClick={() => navigate(`/incident/${inc.id}`)}
 							>
+								{/* Обновленный вызов getSeverityClass с передачей risk_level */}
 								<div
-									className={`severity-bar ${getSeverityClass(inc.severity)}`}
+									className={`severity-bar ${getSeverityClass(inc.severity, inc.risk_level)}`}
 								></div>
 
 								<div className='incident-main'>
