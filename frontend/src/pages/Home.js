@@ -164,12 +164,53 @@ const Home = () => {
 									</div>
 								</div>
 
-								<div className='incident-actions'>
+								<div
+									className='incident-actions'
+									style={{
+										display: 'flex',
+										gap: '6px',
+										flexDirection: 'column',
+										alignItems: 'flex-end',
+									}}
+								>
 									<span
 										className={`status-badge ${getStatusClass(inc.status)}`}
 									>
 										{inc.status}
 									</span>
+									{inc.risk_level && (
+										<span
+											className={`status-badge ${
+												inc.risk_level === 'critical'
+													? 'reviewing'
+													: inc.risk_level === 'high'
+														? 'investigating'
+														: inc.risk_level === 'medium'
+															? 'reviewing'
+															: 'resolved'
+											}`}
+											style={{
+												borderColor:
+													inc.risk_level === 'critical'
+														? 'var(--danger)'
+														: inc.risk_level === 'high'
+															? '#ff6b35'
+															: inc.risk_level === 'medium'
+																? 'var(--warning)'
+																: 'var(--accent)',
+												color:
+													inc.risk_level === 'critical'
+														? 'var(--danger)'
+														: inc.risk_level === 'high'
+															? '#ff6b35'
+															: inc.risk_level === 'medium'
+																? 'var(--warning)'
+																: 'var(--accent)',
+											}}
+										>
+											RISK: {inc.risk_score || '?'}
+										</span>
+									)}
 								</div>
 							</div>
 						))

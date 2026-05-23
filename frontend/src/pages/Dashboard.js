@@ -2,6 +2,77 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 
+const Timeline = () => {
+	const [timeline, setTimeline] = useState([])
+
+	useEffect(() => {
+		api
+			.get('/api/analytics/timeline')
+			.then(res => setTimeline(res.data))
+			.catch(console.error)
+	}, [])
+
+	const maxCount = Math.max(...timeline.map(t => parseInt(t.count)), 1)
+
+	return (
+		<div
+			style={{
+				display: 'flex',
+				alignItems: 'flex-end',
+				gap: '8px',
+				height: '150px',
+				paddingTop: '10px',
+			}}
+		>
+			{timeline.length === 0 ? (
+				<div className='empty-state' style={{ width: '100%' }}>
+					Нет данных за 24 часа
+				</div>
+			) : (
+				timeline.map((item, i) => (
+					<div
+						key={i}
+						style={{
+							flex: 1,
+							display: 'flex',
+							flexDirection: 'column',
+							alignItems: 'center',
+							height: '100%',
+						}}
+					>
+						<div
+							style={{
+								width: '100%',
+								height: `${(parseInt(item.count) / maxCount) * 100}%`,
+								background:
+									parseInt(item.suspicious_count) > 0
+										? 'var(--danger)'
+										: 'var(--accent)',
+								border: '1px solid var(--border)',
+								minHeight: '4px',
+								transition: 'height 0.3s ease',
+							}}
+							title={`${item.count} событий, ${item.suspicious_count} подозрительных`}
+						></div>
+						<div
+							style={{
+								fontFamily: 'var(--font-mono)',
+								fontSize: '8px',
+								color: 'var(--text-muted)',
+								marginTop: '4px',
+								transform: 'rotate(-45deg)',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{new Date(item.hour).getHours()}:00
+						</div>
+					</div>
+				))
+			)}
+		</div>
+	)
+}
+
 const Dashboard = () => {
 	const [data, setData] = useState(null)
 	const [loading, setLoading] = useState(true)
@@ -264,6 +335,13 @@ const Dashboard = () => {
 						))}
 					</div>
 				)}
+			</div>
+			{/* ТАЙМЛАЙН */}
+			<div className='form-card' style={{ padding: '24px', marginTop: '24px' }}>
+				<div className='form-label' style={{ marginBottom: '16px' }}>
+					АКТИВНОСТЬ ЗА 24 ЧАСА
+				</div>
+				<Timeline />
 			</div>
 		</div>
 	)

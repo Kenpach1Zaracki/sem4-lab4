@@ -49,7 +49,6 @@ const Detail = () => {
 				navigate('/')
 			})
 			.catch(err => {
-				// 403 отлавливается глобально, но можем добавить фоллбэк
 				if (err.response?.status !== 403) {
 					showToast(err.response?.data?.error || 'Ошибка при удалении', 'error')
 				}
@@ -182,6 +181,79 @@ const Detail = () => {
 								/>
 							</div>
 						</div>
+
+						{/* НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ */}
+						<div
+							className='form-divider'
+							style={{ margin: '12px 0 24px' }}
+						></div>
+
+						<div className='form-row'>
+							<div className='form-group'>
+								<label className='form-label'>Уровень риска</label>
+								<select
+									className='form-select'
+									value={formData.risk_level || ''}
+									onChange={e =>
+										setFormData({ ...formData, risk_level: e.target.value })
+									}
+								>
+									<option value=''>Не рассчитан</option>
+									<option value='low'>Низкий</option>
+									<option value='medium'>Средний</option>
+									<option value='high'>Высокий</option>
+									<option value='critical'>Критический</option>
+								</select>
+							</div>
+							<div className='form-group'>
+								<label className='form-label'>Оценка риска (0-100)</label>
+								<input
+									type='number'
+									min='0'
+									max='100'
+									className='form-input'
+									value={formData.risk_score || 0}
+									onChange={e =>
+										setFormData({
+											...formData,
+											risk_score: parseInt(e.target.value) || 0,
+										})
+									}
+								/>
+							</div>
+						</div>
+
+						<div className='form-row'>
+							<div className='form-group'>
+								<label className='form-label'>Подозрительный</label>
+								<select
+									className='form-select'
+									value={formData.is_suspicious ? 'yes' : 'no'}
+									onChange={e =>
+										setFormData({
+											...formData,
+											is_suspicious: e.target.value === 'yes',
+										})
+									}
+								>
+									<option value='no'>Нет</option>
+									<option value='yes'>Да</option>
+								</select>
+							</div>
+						</div>
+
+						<div className='form-group'>
+							<label className='form-label'>Причина обнаружения</label>
+							<textarea
+								className='form-input'
+								rows='3'
+								value={formData.detection_reason || ''}
+								onChange={e =>
+									setFormData({ ...formData, detection_reason: e.target.value })
+								}
+								placeholder='Опишите, как был обнаружен инцидент...'
+							/>
+						</div>
 					</>
 				) : (
 					<>
@@ -221,6 +293,67 @@ const Detail = () => {
 								<div style={{ color: 'var(--text-secondary)' }}>
 									{incident.assignedTo || 'Не назначен'}
 								</div>
+							</div>
+						</div>
+
+						{/* НОВЫЙ БЛОК - УРОВЕНЬ РИСКА И ПОДОЗРИТЕЛЬНЫЙ */}
+						<div
+							className='form-divider'
+							style={{ margin: '12px 0 24px' }}
+						></div>
+						<div className='form-row'>
+							<div className='form-group'>
+								<div className='form-label'>УРОВЕНЬ РИСКА</div>
+								<div
+									style={{
+										fontSize: '18px',
+										fontWeight: '600',
+										color:
+											incident.risk_level === 'critical'
+												? 'var(--danger)'
+												: incident.risk_level === 'high'
+													? '#ff6b35'
+													: incident.risk_level === 'medium'
+														? 'var(--warning)'
+														: 'var(--accent)',
+									}}
+								>
+									{incident.risk_level
+										? incident.risk_level.toUpperCase()
+										: 'НЕ РАССЧИТАН'}{' '}
+									({incident.risk_score || 0}/100)
+								</div>
+							</div>
+							<div className='form-group'>
+								<div className='form-label'>ПОДОЗРИТЕЛЬНЫЙ</div>
+								<div
+									style={{
+										fontSize: '18px',
+										color: incident.is_suspicious
+											? 'var(--danger)'
+											: 'var(--accent)',
+									}}
+								>
+									{incident.is_suspicious ? '⚠️ ДА' : '✅ НЕТ'}
+								</div>
+							</div>
+						</div>
+
+						<div className='form-group' style={{ marginTop: '16px' }}>
+							<div className='form-label'>ПРИЧИНА ОБНАРУЖЕНИЯ</div>
+							<div
+								style={{
+									background: 'var(--bg)',
+									border: '1px solid var(--border)',
+									padding: '12px 16px',
+									fontFamily: 'var(--font-mono)',
+									fontSize: '12px',
+									color: 'var(--text-secondary)',
+									lineHeight: '1.6',
+								}}
+							>
+								{incident.detection_reason ||
+									'Риск не рассчитан. Отредактируйте инцидент для пересчёта.'}
 							</div>
 						</div>
 					</>
