@@ -16,6 +16,7 @@ import { isLoggedIn, getUser } from './auth'
 import { ToastProvider, useToast } from './ToastContext'
 import { setGlobalToast } from './api'
 import Dataset from './pages/Dataset'
+import CorrelationAlerts from './pages/CorrelationAlerts'
 
 // Компонент-охранник
 const PrivateRoute = ({ children, allowedRoles }) => {
@@ -91,6 +92,14 @@ const App = () => {
 						element={
 							<PrivateRoute allowedRoles={['admin', 'investigator']}>
 								<Dataset />
+							</PrivateRoute>
+						}
+					/>
+					<Route
+						path='/correlation'
+						element={
+							<PrivateRoute>
+								<CorrelationAlerts />
 							</PrivateRoute>
 						}
 					/>

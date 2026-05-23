@@ -3,6 +3,7 @@ const router = express.Router()
 const pool = require('../db')
 const { authMiddleware, requireRole } = require('../middleware/auth')
 const { calculateRisk } = require('../utils/riskCalculator')
+const { correlateIncident } = require('../utils/correlationEngine')
 const fs = require('fs')
 const path = require('path')
 
@@ -96,6 +97,13 @@ router.post('/', requireRole('admin', 'investigator'), async (req, res) => {
 		)
 		const newIncident = result.rows[0]
 
+		// Запускаем корреляцию (не блокируем ответ)
+		correlateIncident(newIncident)
+			.then(alert => {
+				if (alert) console.log(`Correlation alert #${alert.id} updated`)
+			})
+			.catch(console.error)
+
 		const logMsg = `[CREATE] ${req.user.email} создал инцидент #${newIncident.id} | Тип: ${type} | Уровень: ${severity} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Локация: ${location} | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
 		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
 			logMsg,
@@ -164,6 +172,15 @@ router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
 				req.params.id,
 			],
 		)
+
+		const updatedIncident = result.rows[0]
+
+		// Запускаем корреляцию (не блокируем ответ)
+		correlateIncident(updatedIncident)
+			.then(alert => {
+				if (alert) console.log(`Correlation alert #${alert.id} updated`)
+			})
+			.catch(console.error)
 
 		const logMsg = `[UPDATE] ${req.user.email} обновил инцидент #${req.params.id} | Статус: ${status} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
 		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [

@@ -51,6 +51,7 @@ app.use('/api/admin', require('./routes/admin'))
 app.use('/api/analytics', require('./routes/analytics'))
 app.use('/api', require('./routes/comments'))
 app.use('/api/dataset', require('./routes/dataset'))
+app.use('/api/correlation', require('./routes/correlation'))
 
 // ─── ПРОСТОЙ ТЕСТОВЫЙ РОУТ ───
 app.get('/api/health', (req, res) => {
