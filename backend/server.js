@@ -49,6 +49,7 @@ app.use('/api/auth', require('./routes/auth'))
 app.use('/api/incidents', require('./routes/incidents'))
 app.use('/api/admin', require('./routes/admin'))
 app.use('/api/analytics', require('./routes/analytics'))
+app.use('/api', require('./routes/comments'))
 
 // ─── ПРОСТОЙ ТЕСТОВЫЙ РОУТ ───
 app.get('/api/health', (req, res) => {

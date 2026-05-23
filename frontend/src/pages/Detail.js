@@ -17,6 +17,11 @@ const Detail = () => {
 	const [formData, setFormData] = useState({})
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
+	// Состояния для комментариев
+	const [comments, setComments] = useState([])
+	const [newComment, setNewComment] = useState('')
+	const [loadingComments, setLoadingComments] = useState(false)
+
 	useEffect(() => {
 		api
 			.get('/api/incidents')
@@ -28,6 +33,14 @@ const Detail = () => {
 				} else setError('Инцидент не найден')
 			})
 			.catch(() => setError('Ошибка загрузки'))
+	}, [id])
+
+	// Загрузка комментариев
+	useEffect(() => {
+		api
+			.get(`/api/incidents/${id}/comments`)
+			.then(res => setComments(res.data))
+			.catch(console.error)
 	}, [id])
 
 	// Проверка, может ли текущий пользователь редактировать
@@ -71,6 +84,20 @@ const Detail = () => {
 					)
 				}
 			})
+	}
+
+	// Отправка комментария
+	const handleAddComment = () => {
+		if (!newComment.trim()) return
+		setLoadingComments(true)
+		api
+			.post(`/api/incidents/${id}/comments`, { comment_text: newComment })
+			.then(res => {
+				setComments([...comments, res.data])
+				setNewComment('')
+			})
+			.catch(err => showToast(err.response?.data?.error || 'Ошибка', 'error'))
+			.finally(() => setLoadingComments(false))
 	}
 
 	if (error)
@@ -182,7 +209,6 @@ const Detail = () => {
 							</div>
 						</div>
 
-						{/* НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ */}
 						<div
 							className='form-divider'
 							style={{ margin: '12px 0 24px' }}
@@ -296,7 +322,6 @@ const Detail = () => {
 							</div>
 						</div>
 
-						{/* НОВЫЙ БЛОК - УРОВЕНЬ РИСКА И ПОДОЗРИТЕЛЬНЫЙ */}
 						<div
 							className='form-divider'
 							style={{ margin: '12px 0 24px' }}
@@ -356,9 +381,103 @@ const Detail = () => {
 									'Риск не рассчитан. Отредактируйте инцидент для пересчёта.'}
 							</div>
 						</div>
+
+						{/* БЛОК КОММЕНТАРИЕВ */}
+						<div
+							className='form-divider'
+							style={{ margin: '30px 0 24px' }}
+						></div>
+						<div className='form-card' style={{ padding: '24px' }}>
+							<div className='form-label' style={{ marginBottom: '16px' }}>
+								КОММЕНТАРИИ РАССЛЕДОВАНИЯ
+							</div>
+
+							{comments.length === 0 ? (
+								<div className='empty-state' style={{ marginBottom: '16px' }}>
+									Комментариев пока нет
+								</div>
+							) : (
+								<div
+									style={{
+										marginBottom: '16px',
+										display: 'flex',
+										flexDirection: 'column',
+										gap: '10px',
+									}}
+								>
+									{comments.map(c => (
+										<div
+											key={c.id}
+											style={{
+												background: 'var(--bg)',
+												border: '1px solid var(--border)',
+												padding: '12px',
+											}}
+										>
+											<div
+												style={{
+													display: 'flex',
+													justifyContent: 'space-between',
+													marginBottom: '6px',
+												}}
+											>
+												<span
+													style={{
+														fontFamily: 'var(--font-mono)',
+														fontSize: '10px',
+														color: 'var(--accent)',
+													}}
+												>
+													{c.author_email}
+												</span>
+												<span
+													style={{
+														fontFamily: 'var(--font-mono)',
+														fontSize: '10px',
+														color: 'var(--text-muted)',
+													}}
+												>
+													{new Date(c.created_at).toLocaleString()}
+												</span>
+											</div>
+											<div
+												style={{
+													fontSize: '14px',
+													color: 'var(--text-primary)',
+													lineHeight: '1.5',
+												}}
+											>
+												{c.comment_text}
+											</div>
+										</div>
+									))}
+								</div>
+							)}
+
+							<div style={{ display: 'flex', gap: '10px' }}>
+								<input
+									className='form-input'
+									style={{ flex: 1 }}
+									placeholder='Добавить комментарий...'
+									value={newComment}
+									onChange={e => setNewComment(e.target.value)}
+									onKeyDown={e => {
+										if (e.key === 'Enter') handleAddComment()
+									}}
+								/>
+								<button
+									className='btn btn-primary'
+									onClick={handleAddComment}
+									disabled={loadingComments}
+								>
+									{loadingComments ? '...' : 'ОТПРАВИТЬ'}
+								</button>
+							</div>
+						</div>
 					</>
 				)}
 			</div>
+
 			<ConfirmModal
 				isOpen={isDeleteModalOpen}
 				title='Удаление инцидента'
