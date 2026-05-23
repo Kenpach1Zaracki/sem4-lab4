@@ -80,6 +80,10 @@ const Home = () => {
 						<Link to='/dashboard' className='btn btn-ghost'>
 							ДАШБОРД
 						</Link>
+						{/* НОВАЯ КНОПКА АЛЕРТЫ */}
+						<Link to='/correlation' className='btn btn-ghost'>
+							АЛЕРТЫ
+						</Link>
 						{user.role === 'admin' && (
 							<Link to='/admin' className='btn btn-ghost'>
 								АДМИНКА
