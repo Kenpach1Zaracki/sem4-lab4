@@ -1,3 +1,4 @@
+import Dashboard from './pages/Dashboard'
 import React, { useEffect } from 'react'
 import {
 	BrowserRouter as Router,
@@ -73,6 +74,14 @@ const App = () => {
 						element={
 							<PrivateRoute allowedRoles={['admin']}>
 								<Admin />
+							</PrivateRoute>
+						}
+					/>
+					<Route
+						path='/dashboard'
+						element={
+							<PrivateRoute>
+								<Dashboard />
 							</PrivateRoute>
 						}
 					/>

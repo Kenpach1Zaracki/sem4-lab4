@@ -43,14 +43,18 @@ const Home = () => {
 	// 1. Фильтрация данных
 	const filteredIncidents = incidents.filter(inc => {
 		const matchStatus = filterStatus === 'all' || inc.status === filterStatus
-		const matchSeverity = filterSeverity === 'all' || inc.severity === filterSeverity
+		const matchSeverity =
+			filterSeverity === 'all' || inc.severity === filterSeverity
 		return matchStatus && matchSeverity
 	})
 
 	// 2. Пагинация данных
 	const indexOfLastItem = currentPage * itemsPerPage
 	const indexOfFirstItem = indexOfLastItem - itemsPerPage
-	const currentItems = filteredIncidents.slice(indexOfFirstItem, indexOfLastItem)
+	const currentItems = filteredIncidents.slice(
+		indexOfFirstItem,
+		indexOfLastItem,
+	)
 	const totalPages = Math.ceil(filteredIncidents.length / itemsPerPage)
 
 	// Сброс страницы при изменении фильтров
@@ -73,6 +77,9 @@ const Home = () => {
 						<span className={`role-tag ${user.role}`}>{user.role}</span>
 					</div>
 					<div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+						<Link to='/dashboard' className='btn btn-ghost'>
+							ДАШБОРД
+						</Link>
 						{user.role === 'admin' && (
 							<Link to='/admin' className='btn btn-ghost'>
 								АДМИНКА
@@ -89,7 +96,13 @@ const Home = () => {
 				{error && <div className='server-error'>{error}</div>}
 
 				<div className='toolbar' style={{ display: 'block' }}>
-					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+					<div
+						style={{
+							display: 'flex',
+							justifyContent: 'space-between',
+							alignItems: 'center',
+						}}
+					>
 						<div className='toolbar-left'>
 							БД ИНЦИДЕНТОВ // ЗАПИСЕЙ: {filteredIncidents.length}
 						</div>
@@ -99,30 +112,30 @@ const Home = () => {
 							</Link>
 						)}
 					</div>
-					
+
 					{/* Блок фильтров */}
 					<div className='filters'>
-						<select 
-							className='form-select' 
-							value={filterStatus} 
-							onChange={(e) => setFilterStatus(e.target.value)}
+						<select
+							className='form-select'
+							value={filterStatus}
+							onChange={e => setFilterStatus(e.target.value)}
 						>
-							<option value="all">Все статусы</option>
-							<option value="Открыт">Открыт</option>
-							<option value="В работе">В работе</option>
-							<option value="Закрыт">Закрыт</option>
+							<option value='all'>Все статусы</option>
+							<option value='Открыт'>Открыт</option>
+							<option value='В работе'>В работе</option>
+							<option value='Закрыт'>Закрыт</option>
 						</select>
-						
-						<select 
-							className='form-select' 
-							value={filterSeverity} 
-							onChange={(e) => setFilterSeverity(e.target.value)}
+
+						<select
+							className='form-select'
+							value={filterSeverity}
+							onChange={e => setFilterSeverity(e.target.value)}
 						>
-							<option value="all">Любой уровень</option>
-							<option value="Низкий">Низкий</option>
-							<option value="Средний">Средний</option>
-							<option value="Высокий">Высокий</option>
-							<option value="Критический">Критический</option>
+							<option value='all'>Любой уровень</option>
+							<option value='Низкий'>Низкий</option>
+							<option value='Средний'>Средний</option>
+							<option value='Высокий'>Высокий</option>
+							<option value='Критический'>Критический</option>
 						</select>
 					</div>
 				</div>
@@ -162,20 +175,23 @@ const Home = () => {
 						))
 					)}
 				</div>
-				
+
 				{/* Блок пагинации */}
 				{totalPages > 1 && (
 					<div className='pagination'>
-						<button 
-							className='btn btn-ghost' 
+						<button
+							className='btn btn-ghost'
 							disabled={currentPage === 1}
 							onClick={() => setCurrentPage(prev => prev - 1)}
 						>
 							НАЗАД
 						</button>
-						<span> СТРАНИЦА {currentPage} ИЗ {totalPages} </span>
-						<button 
-							className='btn btn-ghost' 
+						<span>
+							{' '}
+							СТРАНИЦА {currentPage} ИЗ {totalPages}{' '}
+						</span>
+						<button
+							className='btn btn-ghost'
 							disabled={currentPage === totalPages}
 							onClick={() => setCurrentPage(prev => prev + 1)}
 						>
