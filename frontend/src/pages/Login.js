@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api'
 import { saveUser } from '../auth'
+import emailjs from '@emailjs/browser'
 
 const Login = () => {
 	const navigate = useNavigate()
@@ -22,13 +23,24 @@ const Login = () => {
 			.post('/api/auth/login', form)
 			.then(response => {
 				if (response.data.require2FA) {
-					setStep('2fa')
-				} else {
-					saveUser(response.data.user, response.data.token)
-					navigate('/')
+					// Отправляем код через EmailJS из браузера
+					emailjs
+						.send('service_xp6vwpo', 'template_1ya2woi', {
+							code: response.data.code,
+							to_email: response.data.email,
+						})
+						.then(() => {
+							setStep('2fa')
+						})
+						.catch(err => {
+							console.error('EmailJS error:', err)
+							setError('Ошибка отправки кода')
+						})
 				}
 			})
-			.catch(err => setError(err.response?.data?.error || 'Ошибка входа'))
+			.catch(err =>
+				setError(err.response?.data?.error || 'Неверные учетные данные'),
+			)
 			.finally(() => setLoading(false))
 	}
 
@@ -57,7 +69,6 @@ const Login = () => {
 						? 'Идентификация персонала'
 						: 'Двухфакторная аутентификация'}
 				</div>
-
 				{error && <div className='server-error'>{error}</div>}
 
 				{step === 'login' ? (
@@ -106,9 +117,7 @@ const Login = () => {
 								textAlign: 'center',
 							}}
 						>
-							Код подтверждения отправлен на
-							<br />
-							<strong>{form.email}</strong>
+							Код отправлен на <strong>{form.email}</strong>
 						</div>
 						<div className='form-group'>
 							<label className='form-label'>Код из письма</label>

@@ -6,7 +6,6 @@ const pool = require('../db')
 const { authMiddleware } = require('../middleware/auth')
 const {
 	generateCode,
-	send2FACode,
 	storeCode,
 	verifyCode,
 } = require('../services/twoFactorService')
@@ -116,23 +115,15 @@ router.post('/login', async (req, res) => {
 		if (!isMatch)
 			return res.status(401).json({ error: 'Неверные учетные данные' })
 
-		// Генерируем 2FA код
+		// Генерируем код и возвращаем фронту (он отправит через EmailJS)
 		const code = generateCode()
 		const { password: _, ...userWithoutPassword } = user
 		storeCode(email, code, userWithoutPassword)
 
-		// Отправляем код на почту
-		const sent = await send2FACode(email, code, user.name)
-
-		if (!sent.success) {
-			return res
-				.status(500)
-				.json({ error: 'Ошибка отправки кода. Попробуйте позже.' })
-		}
-
 		res.json({
 			require2FA: true,
 			email: email,
+			code: code,
 			message: 'Код подтверждения отправлен на вашу почту',
 		})
 	} catch (err) {
