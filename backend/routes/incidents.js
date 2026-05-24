@@ -47,7 +47,7 @@ router.use(authMiddleware)
  * @swagger
  * /api/incidents:
  *   get:
- *     summary: Получить список инцидентов (user видит только свои)
+ *     summary: Получить список инцидентов (user видит только свои, investigator - назначенные + свои, admin - все)
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
@@ -59,11 +59,19 @@ router.get('/', async (req, res) => {
 	try {
 		let result
 		if (req.user.role === 'user') {
+			// user видит только созданные им
 			result = await pool.query(
 				'SELECT * FROM incidents WHERE created_by = $1 ORDER BY id DESC',
 				[req.user.email],
 			)
+		} else if (req.user.role === 'investigator') {
+			// investigator видит назначенные на него + созданные им
+			result = await pool.query(
+				'SELECT * FROM incidents WHERE "assignedTo" = $1 OR created_by = $1 ORDER BY id DESC',
+				[req.user.email],
+			)
 		} else {
+			// admin видит все
 			result = await pool.query('SELECT * FROM incidents ORDER BY id DESC')
 		}
 		res.json(result.rows)

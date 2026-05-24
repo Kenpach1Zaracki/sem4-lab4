@@ -47,10 +47,30 @@ router.post('/incidents/:id/comments', async (req, res) => {
 		})
 	}
 
-	// Защита: санитизация от XSS
-	comment_text = sanitize(comment_text.trim())
-
 	try {
+		// Проверяем права на инцидент
+		const incident = await pool.query('SELECT * FROM incidents WHERE id = $1', [
+			req.params.id,
+		])
+		if (incident.rows.length === 0) {
+			return res.status(404).json({ error: 'Инцидент не найден' })
+		}
+
+		const inc = incident.rows[0]
+
+		// investigator может комментировать только назначенные ему
+		if (req.user.role === 'investigator' && inc.assignedTo !== req.user.email) {
+			return res.status(403).json({ error: 'Вы не назначены на этот инцидент' })
+		}
+
+		// user не может комментировать вообще
+		if (req.user.role === 'user') {
+			return res.status(403).json({ error: 'Недостаточно прав' })
+		}
+
+		// Защита: санитизация от XSS
+		comment_text = sanitize(comment_text.trim())
+
 		const result = await pool.query(
 			'INSERT INTO investigation_comments (incident_id, author_email, comment_text) VALUES ($1, $2, $3) RETURNING *',
 			[req.params.id, req.user.email, comment_text],
