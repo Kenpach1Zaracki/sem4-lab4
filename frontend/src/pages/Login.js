@@ -55,6 +55,17 @@ const Login = () => {
 			.post('/api/auth/verify-2fa', { email: form.email, code })
 			.then(response => {
 				saveUser(response.data.user, response.data.token)
+
+				// Если новое устройство — отправляем уведомление
+				if (response.data.isNewDevice) {
+					emailjs
+						.send('service_xp6vwpo', 'template_ry39sxa', {
+							subject: '⚠️ Новый вход в SafeTrack',
+							message: `Обнаружен вход с нового устройства. IP: ${response.data.clientIp}. Время: ${new Date().toLocaleString('ru-RU')}. Если это не вы — смените пароль.`,
+						})
+						.catch(() => {}) // Игнорируем ошибки отправки уведомления
+				}
+
 				navigate('/')
 			})
 			.catch(err => setError(err.response?.data?.error || 'Неверный код'))

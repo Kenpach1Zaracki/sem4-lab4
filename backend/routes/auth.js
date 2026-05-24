@@ -2,7 +2,6 @@ const express = require('express')
 const router = express.Router()
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const axios = require('axios')
 const pool = require('../db')
 const { authMiddleware } = require('../middleware/auth')
 const {
@@ -169,17 +168,15 @@ router.post('/verify-2fa', async (req, res) => {
 		return res.status(401).json({ error: result.error })
 	}
 
-	// Проверяем IP пользователя
 	const clientIp =
 		req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'
 
-	// Ищем последние логины с этого IP для этого пользователя
 	const ipCheck = await pool.query(
-		`SELECT * FROM logs WHERE user_email = $1 AND action LIKE '%[LOGIN_IP]%' AND action LIKE $2 ORDER BY created_at DESC LIMIT 1`,
-		[email, `%${clientIp}%`],
+		`SELECT * FROM logs WHERE user_email = $1 AND action LIKE $2 ORDER BY created_at DESC LIMIT 1`,
+		[email, '%[LOGIN_IP]%'],
 	)
 
-	const isNewIp = ipCheck.rows.length === 0
+	const isNewDevice = ipCheck.rows.length === 0
 
 	const token = jwt.sign(
 		{
@@ -192,39 +189,17 @@ router.post('/verify-2fa', async (req, res) => {
 		{ expiresIn: '24h' },
 	)
 
-	// Логируем вход
 	await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
-		`[LOGIN_IP] Успешный вход | IP: ${clientIp} | ${isNewIp ? 'НОВОЕ УСТРОЙСТВО' : 'известное устройство'}`,
+		`[LOGIN_IP] Успешный вход | IP: ${clientIp} | ${isNewDevice ? 'НОВОЕ УСТРОЙСТВО' : 'известное устройство'}`,
 		email,
 	])
 
-	// Отправляем уведомление о новом IP
-	if (isNewIp) {
-		try {
-			await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
-				service_id: 'service_xp6vwpo',
-				template_id: 'template_ry39sxa',
-				user_id: '6DVOEcdg-NWDwXvv9',
-				template_params: {
-					subject: '⚠️ Новый вход в SafeTrack',
-					message: `
-						<div style="font-family: Arial, sans-serif; padding: 20px;">
-							<h2 style="color: #ff4d00;">⚠️ Обнаружен вход с нового устройства</h2>
-							<p>Пользователь: <strong>${result.user.name} (${email})</strong></p>
-							<p>IP-адрес: <strong>${clientIp}</strong></p>
-							<p>Время: ${new Date().toLocaleString('ru-RU')}</p>
-							<p style="color: #666; margin-top: 20px;">Если это были не вы — немедленно смените пароль.</p>
-						</div>
-					`,
-				},
-			})
-			console.log(`Уведомление о новом IP отправлено для ${email}`)
-		} catch (e) {
-			console.error('Ошибка отправки уведомления о новом IP:', e.message)
-		}
-	}
-
-	res.json({ token, user: result.user })
+	res.json({
+		token,
+		user: result.user,
+		isNewDevice: isNewDevice,
+		clientIp: clientIp,
+	})
 })
 
 /**
