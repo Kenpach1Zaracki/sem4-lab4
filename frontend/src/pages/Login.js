@@ -4,6 +4,9 @@ import { api } from '../api'
 import { saveUser } from '../auth'
 import emailjs from '@emailjs/browser'
 
+// Инициализация EmailJS с публичным ключом
+emailjs.init('6DVOEcdg-NWDwXvv9')
+
 const Login = () => {
 	const navigate = useNavigate()
 	const [step, setStep] = useState('login')
@@ -61,9 +64,10 @@ const Login = () => {
 					emailjs
 						.send('service_xp6vwpo', 'template_ry39sxa', {
 							subject: '⚠️ Новый вход в SafeTrack',
-							message: `Обнаружен вход с нового устройства. IP: ${response.data.clientIp}. Время: ${new Date().toLocaleString('ru-RU')}. Если это не вы — смените пароль.`,
+							message: `Обнаружен вход с нового устройства.\nIP: ${response.data.clientIp}\nВремя: ${new Date().toLocaleString('ru-RU')}\n\nЕсли это не вы — немедленно смените пароль.`,
+							to_email: form.email,
 						})
-						.catch(() => {}) // Игнорируем ошибки отправки уведомления
+						.catch(err => console.error('EmailJS error:', err))
 				}
 
 				navigate('/')

@@ -87,20 +87,22 @@ const Home = () => {
 						<span className={`role-tag ${user.role}`}>{user.role}</span>
 					</div>
 					<div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-						<Link to='/dashboard' className='btn btn-ghost'>
-							ДАШБОРД
-						</Link>
-						{/* НОВАЯ КНОПКА АЛЕРТЫ */}
-						<Link to='/correlation' className='btn btn-ghost'>
-							АЛЕРТЫ
-						</Link>
+						{(user.role === 'admin' || user.role === 'investigator') && (
+							<Link to='/dashboard' className='btn btn-ghost'>
+								ДАШБОРД
+							</Link>
+						)}
+						{(user.role === 'admin' || user.role === 'investigator') && (
+							<Link to='/correlation' className='btn btn-ghost'>
+								АЛЕРТЫ
+							</Link>
+						)}
 						{user.role === 'admin' && (
 							<Link to='/admin' className='btn btn-ghost'>
 								АДМИНКА
 							</Link>
 						)}
-						{/* НОВАЯ КНОПКА ИМПОРТ CSV */}
-						{user.role !== 'user' && (
+						{(user.role === 'admin' || user.role === 'investigator') && (
 							<Link to='/dataset' className='btn btn-ghost'>
 								ИМПОРТ CSV
 							</Link>

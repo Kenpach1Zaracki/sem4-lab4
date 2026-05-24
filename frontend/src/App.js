@@ -82,7 +82,7 @@ const App = () => {
 					<Route
 						path='/dashboard'
 						element={
-							<PrivateRoute>
+							<PrivateRoute allowedRoles={['admin', 'investigator']}>
 								<Dashboard />
 							</PrivateRoute>
 						}
@@ -98,7 +98,7 @@ const App = () => {
 					<Route
 						path='/correlation'
 						element={
-							<PrivateRoute>
+							<PrivateRoute allowedRoles={['admin', 'investigator']}>
 								<CorrelationAlerts />
 							</PrivateRoute>
 						}
