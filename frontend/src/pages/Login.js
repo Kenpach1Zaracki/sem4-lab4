@@ -23,19 +23,22 @@ const Login = () => {
 			.post('/api/auth/login', form)
 			.then(response => {
 				if (response.data.require2FA) {
-					// Отправляем код через EmailJS из браузера
-					emailjs
-						.send('service_xp6vwpo', 'template_1ya2woi', {
-							code: response.data.code,
-							to_email: response.data.email,
-						})
-						.then(() => {
-							setStep('2fa')
-						})
-						.catch(err => {
-							console.error('EmailJS error:', err)
-							setError('Ошибка отправки кода')
-						})
+					// Отправляем код через REST API EmailJS (без библиотеки)
+					fetch('https://api.emailjs.com/api/v1.0/email/send', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							service_id: 'service_xp6vwpo',
+							template_id: 'template_1ya2woi',
+							user_id: '6DVOEcdg-NWDwXvv9',
+							template_params: {
+								code: response.data.code,
+								to_email: response.data.email,
+							},
+						}),
+					})
+						.then(() => setStep('2fa'))
+						.catch(() => setError('Ошибка отправки кода'))
 				}
 			})
 			.catch(err =>
