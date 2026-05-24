@@ -1,7 +1,12 @@
 import emailjs from '@emailjs/browser'
 
-// 1. Инициализация твоим Public Key
-emailjs.init('6DVOEcdg-NWDwXvv9')
+const PUBLIC_KEY =
+	process.env.REACT_APP_EMAILJS_PUBLIC_KEY || '6DVOEcdg-NWDwXvv9'
+const SERVICE_ID = process.env.REACT_APP_EMAILJS_SERVICE_ID || 'service_xp6vwpo'
+const TEMPLATE_ID =
+	process.env.REACT_APP_EMAILJS_TEMPLATE_ID || 'template_ry39sxa'
+
+emailjs.init(PUBLIC_KEY)
 
 export const sendRealEmail = async (type, data) => {
 	const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
@@ -72,12 +77,7 @@ export const sendRealEmail = async (type, data) => {
 			message: message,
 		}
 
-		// 2. Отправка с твоими Service ID и Template ID
-		const response = await emailjs.send(
-			'service_xp6vwpo',
-			'template_ry39sxa',
-			templateParams,
-		)
+		const response = await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams)
 
 		console.log(`📧 [EMAIL SENT] ${subject}`)
 		return { success: true, response }
