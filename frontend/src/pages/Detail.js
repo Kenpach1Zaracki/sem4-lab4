@@ -100,6 +100,43 @@ const Detail = () => {
 			.finally(() => setLoadingComments(false))
 	}
 
+	// Функция скачивания отчета
+	const handleDownloadReport = () => {
+		if (!incident) return
+
+		const report = `
+========================================
+   SAFETRACK — ОТЧЁТ ПО ИНЦИДЕНТУ #${incident.id}
+========================================
+
+Тип:              ${incident.type}
+Локация:          ${incident.location}
+Уровень угрозы:   ${incident.severity}
+Статус:           ${incident.status}
+Назначен:         ${incident.assignedTo || 'Не назначен'}
+
+--- РИСК-АНАЛИЗ ---
+Уровень риска:    ${incident.risk_level ? incident.risk_level.toUpperCase() : 'N/A'} (${incident.risk_score || 0}/100)
+Подозрительный:   ${incident.is_suspicious ? 'ДА' : 'НЕТ'}
+Причина:          ${incident.detection_reason || 'N/A'}
+
+--- КОММЕНТАРИИ ---
+${comments.length > 0 ? comments.map(c => `[${new Date(c.created_at).toLocaleString()}] ${c.author_email}: ${c.comment_text}`).join('\n') : 'Комментариев нет'}
+
+Дата создания:    ${new Date(incident.created_at).toLocaleString()}
+Отчёт сгенерирован: ${new Date().toLocaleString()}
+========================================
+`
+
+		const blob = new Blob([report], { type: 'text/plain;charset=utf-8' })
+		const url = window.URL.createObjectURL(blob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = `incident_${incident.id}_report.txt`
+		link.click()
+		window.URL.revokeObjectURL(url)
+	}
+
 	if (error)
 		return (
 			<div className='page'>
@@ -128,28 +165,30 @@ const Detail = () => {
 						ДОСЬЕ <span>#{incident.id}</span>
 					</h1>
 				</div>
-				{canEdit && (
-					<div
-						className='header-right'
-						style={{ display: 'flex', gap: '10px' }}
-					>
-						{isEditing ? (
-							<button onClick={handleSave} className='btn btn-primary'>
-								СОХРАНИТЬ
+				<div className='header-right' style={{ display: 'flex', gap: '10px' }}>
+					<button onClick={handleDownloadReport} className='btn btn-ghost'>
+						ОТЧЁТ
+					</button>
+					{canEdit && (
+						<>
+							{isEditing ? (
+								<button onClick={handleSave} className='btn btn-primary'>
+									СОХРАНИТЬ
+								</button>
+							) : (
+								<button
+									onClick={() => setIsEditing(true)}
+									className='btn btn-primary'
+								>
+									РЕДАКТИРОВАТЬ
+								</button>
+							)}
+							<button onClick={handleDeleteClick} className='btn btn-danger'>
+								УДАЛИТЬ
 							</button>
-						) : (
-							<button
-								onClick={() => setIsEditing(true)}
-								className='btn btn-primary'
-							>
-								РЕДАКТИРОВАТЬ
-							</button>
-						)}
-						<button onClick={handleDeleteClick} className='btn btn-danger'>
-							УДАЛИТЬ
-						</button>
-					</div>
-				)}
+						</>
+					)}
+				</div>
 			</div>
 
 			<div className='form-card'>

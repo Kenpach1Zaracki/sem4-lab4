@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 
@@ -73,6 +73,69 @@ const Timeline = () => {
 	)
 }
 
+// Компонент круговой диаграммы
+const RiskPieChart = ({ data }) => {
+	const canvasRef = useRef(null)
+	const total = data.reduce((sum, item) => sum + parseInt(item.count), 0) || 1
+
+	React.useEffect(() => {
+		const canvas = canvasRef.current
+		if (!canvas) return
+		const ctx = canvas.getContext('2d')
+		const w = canvas.width
+		const h = canvas.height
+		const cx = w / 2
+		const cy = h / 2
+		const r = Math.min(cx, cy) - 4
+
+		ctx.clearRect(0, 0, w, h)
+
+		const colors = {
+			low: '#00ffcc',
+			medium: '#ffb800',
+			high: '#ff6b35',
+			critical: '#ff3b3b',
+		}
+
+		let startAngle = -Math.PI / 2
+		data.forEach(item => {
+			const slice = (parseInt(item.count) / total) * Math.PI * 2
+			ctx.beginPath()
+			ctx.moveTo(cx, cy)
+			ctx.arc(cx, cy, r, startAngle, startAngle + slice)
+			ctx.closePath()
+			ctx.fillStyle = colors[item.risk_level] || '#555'
+			ctx.fill()
+			ctx.strokeStyle = '#111'
+			ctx.lineWidth = 2
+			ctx.stroke()
+			startAngle += slice
+		})
+
+		// Внутренний круг (пончик)
+		ctx.beginPath()
+		ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2)
+		ctx.fillStyle = '#0a0a0a'
+		ctx.fill()
+
+		// Текст в центре
+		ctx.fillStyle = '#fff'
+		ctx.font = 'bold 18px Orbitron'
+		ctx.textAlign = 'center'
+		ctx.textBaseline = 'middle'
+		ctx.fillText(total, cx, cy)
+	}, [data])
+
+	return (
+		<canvas
+			ref={canvasRef}
+			width='160'
+			height='160'
+			style={{ width: '160px', height: '160px' }}
+		/>
+	)
+}
+
 const Dashboard = () => {
 	const [data, setData] = useState(null)
 	const [loading, setLoading] = useState(true)
@@ -137,11 +200,6 @@ const Dashboard = () => {
 		high: 'ВЫСОКИЙ',
 		critical: 'КРИТИЧЕСКИЙ',
 	}
-
-	const maxRiskCount = Math.max(
-		...(data.risk_distribution || []).map(r => parseInt(r.count)),
-		1,
-	)
 
 	return (
 		<div className='page'>
@@ -242,6 +300,7 @@ const Dashboard = () => {
 					marginBottom: '30px',
 				}}
 			>
+				{/* КРУГОВАЯ ДИАГРАММА */}
 				<div className='form-card' style={{ padding: '24px' }}>
 					<div className='form-label' style={{ marginBottom: '16px' }}>
 						РАСПРЕДЕЛЕНИЕ РИСКОВ
@@ -249,42 +308,47 @@ const Dashboard = () => {
 					{(data.risk_distribution || []).length === 0 ? (
 						<div className='empty-state'>Нет данных</div>
 					) : (
-						(data.risk_distribution || []).map(item => (
-							<div key={item.risk_level} style={{ marginBottom: '12px' }}>
-								<div
-									style={{
-										display: 'flex',
-										justifyContent: 'space-between',
-										fontFamily: 'var(--font-mono)',
-										fontSize: '11px',
-										marginBottom: '4px',
-									}}
-								>
-									<span style={{ color: riskColors[item.risk_level] }}>
-										{riskLabels[item.risk_level] || item.risk_level}
-									</span>
-									<span style={{ color: 'var(--text-muted)' }}>
-										{item.count}
-									</span>
-								</div>
-								<div
-									style={{
-										background: 'var(--bg)',
-										height: '8px',
-										border: '1px solid var(--border)',
-									}}
-								>
+						<div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+							<RiskPieChart data={data.risk_distribution} />
+							<div
+								style={{
+									display: 'flex',
+									flexDirection: 'column',
+									gap: '10px',
+								}}
+							>
+								{(data.risk_distribution || []).map(item => (
 									<div
+										key={item.risk_level}
 										style={{
-											background:
-												riskColors[item.risk_level] || 'var(--text-muted)',
-											height: '100%',
-											width: `${(parseInt(item.count) / maxRiskCount) * 100}%`,
+											display: 'flex',
+											alignItems: 'center',
+											gap: '8px',
 										}}
-									></div>
-								</div>
+									>
+										<div
+											style={{
+												width: '14px',
+												height: '14px',
+												background:
+													riskColors[item.risk_level] || 'var(--text-muted)',
+												border: '1px solid var(--border)',
+											}}
+										></div>
+										<span
+											style={{
+												fontFamily: 'var(--font-mono)',
+												fontSize: '12px',
+												color: 'var(--text-primary)',
+											}}
+										>
+											{riskLabels[item.risk_level] || item.risk_level}:{' '}
+											{item.count}
+										</span>
+									</div>
+								))}
 							</div>
-						))
+						</div>
 					)}
 				</div>
 

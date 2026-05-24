@@ -4,6 +4,7 @@ const helmet = require('helmet')
 const dotenv = require('dotenv')
 const swaggerJsDoc = require('swagger-jsdoc')
 const swaggerUi = require('swagger-ui-express')
+const rateLimit = require('express-rate-limit')
 
 dotenv.config()
 
@@ -44,8 +45,28 @@ app.use(express.json())
 // Подключаем базу
 require('./db')
 
+// ─── RATE LIMITING ДЛЯ ЛОГИНА ───
+// Rate limiting: 5 попыток в минуту
+const loginLimiter = rateLimit({
+	windowMs: 1 * 60 * 1000, // 1 минута
+	max: 5, // 5 попыток
+	message: { error: 'Слишком много попыток входа. Попробуйте через минуту.' },
+	standardHeaders: true,
+	legacyHeaders: false,
+})
+
 // ─── ROUTES (МАРШРУТЫ) ───
-app.use('/api/auth', require('./routes/auth'))
+const authRoutes = require('./routes/auth')
+
+// Применяем rate limiting только к POST /login
+app.use('/api/auth', (req, res, next) => {
+	if (req.path === '/login' && req.method === 'POST') {
+		return loginLimiter(req, res, next)
+	}
+	next()
+})
+app.use('/api/auth', authRoutes)
+
 app.use('/api/incidents', require('./routes/incidents'))
 app.use('/api/admin', require('./routes/admin'))
 app.use('/api/analytics', require('./routes/analytics'))
