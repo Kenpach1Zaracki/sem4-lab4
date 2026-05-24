@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+
 import React, { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
@@ -10,7 +12,7 @@ const Timeline = () => {
 		api
 			.get('/api/analytics/timeline')
 			.then(res => setTimeline(res.data))
-			.catch(() => {}) // молча игнорируем ошибку
+			.catch(() => {})
 	}, [])
 
 	const maxCount = Math.max(...timeline.map(t => parseInt(t.count)), 1)
@@ -79,7 +81,7 @@ const RiskPieChart = ({ data }) => {
 	const canvasRef = useRef(null)
 	const total = data.reduce((sum, item) => sum + parseInt(item.count), 0) || 1
 
-	React.useEffect(() => {
+	useEffect(() => {
 		const canvas = canvasRef.current
 		if (!canvas) return
 		const ctx = canvas.getContext('2d')
@@ -125,7 +127,7 @@ const RiskPieChart = ({ data }) => {
 		ctx.textAlign = 'center'
 		ctx.textBaseline = 'middle'
 		ctx.fillText(total, cx, cy)
-	}, [data])
+	}, [data, total])
 
 	return (
 		<canvas
@@ -147,21 +149,19 @@ const Dashboard = () => {
 		api
 			.get('/api/analytics/summary')
 			.then(res => setData(res.data))
-			.catch(() => {}) // молча игнорируем ошибку
+			.catch(() => {})
 			.finally(() => setLoading(false))
 	}, [])
 
-	// Загрузка последних действий — только для admin
 	useEffect(() => {
 		if (user.role === 'admin') {
 			api
 				.get('/api/admin/logs')
 				.then(res => setLogs(res.data.slice(0, 5)))
-				.catch(() => {}) // молча игнорируем ошибку
+				.catch(() => {})
 		}
 	}, [user.role])
 
-	// Функция экспорта CSV
 	const handleExport = () => {
 		api
 			.get('/api/dataset/export', { responseType: 'blob' })
@@ -175,7 +175,7 @@ const Dashboard = () => {
 				document.body.removeChild(link)
 				window.URL.revokeObjectURL(url)
 			})
-			.catch(() => {}) // молча игнорируем ошибку
+			.catch(() => {})
 	}
 
 	if (loading)
@@ -211,7 +211,6 @@ const Dashboard = () => {
 				ТЕРМИНАЛ
 			</Link>
 
-			{/* КНОПКА ЭКСПОРТА CSV */}
 			<button
 				onClick={handleExport}
 				className='btn btn-primary'
@@ -225,7 +224,6 @@ const Dashboard = () => {
 			</div>
 			<div className='form-divider'></div>
 
-			{/* 4 КАРТОЧКИ */}
 			<div
 				style={{
 					display: 'grid',
@@ -276,7 +274,6 @@ const Dashboard = () => {
 				))}
 			</div>
 
-			{/* СРЕДНИЙ РИСК */}
 			<div
 				className='form-card'
 				style={{ padding: '20px', marginBottom: '24px', textAlign: 'center' }}
@@ -295,7 +292,6 @@ const Dashboard = () => {
 				</div>
 			</div>
 
-			{/* РАСПРЕДЕЛЕНИЕ + ТОП-5 */}
 			<div
 				style={{
 					display: 'grid',
@@ -304,7 +300,6 @@ const Dashboard = () => {
 					marginBottom: '30px',
 				}}
 			>
-				{/* КРУГОВАЯ ДИАГРАММА */}
 				<div className='form-card' style={{ padding: '24px' }}>
 					<div className='form-label' style={{ marginBottom: '16px' }}>
 						РАСПРЕДЕЛЕНИЕ РИСКОВ
@@ -390,7 +385,6 @@ const Dashboard = () => {
 				</div>
 			</div>
 
-			{/* ТОП-5 ЛОКАЦИЙ */}
 			<div className='form-card' style={{ padding: '24px' }}>
 				<div className='form-label' style={{ marginBottom: '16px' }}>
 					ТОП-5 ЛОКАЦИЙ
@@ -440,7 +434,6 @@ const Dashboard = () => {
 				)}
 			</div>
 
-			{/* ТАЙМЛАЙН */}
 			<div className='form-card' style={{ padding: '24px', marginTop: '24px' }}>
 				<div className='form-label' style={{ marginBottom: '16px' }}>
 					АКТИВНОСТЬ ЗА 24 ЧАСА
@@ -448,7 +441,6 @@ const Dashboard = () => {
 				<Timeline />
 			</div>
 
-			{/* ПОСЛЕДНИЕ ДЕЙСТВИЯ — ТОЛЬКО ДЛЯ ADMIN */}
 			{user.role === 'admin' && (
 				<div
 					className='form-card'
