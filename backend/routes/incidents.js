@@ -1,5 +1,6 @@
 const express = require('express')
 const router = express.Router()
+const crypto = require('crypto')
 const pool = require('../db')
 const { authMiddleware, requireRole } = require('../middleware/auth')
 const { calculateRisk } = require('../utils/riskCalculator')
@@ -13,6 +14,22 @@ const path = require('path')
  *   name: Incidents
  *   description: Управление инцидентами ИБ (CRUD) + Risk Calculator
  */
+
+// Хеширование IP-адреса для безопасности
+const hashIp = req => {
+	const ip =
+		req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'
+	// Убираем порт, если есть, и берем только первый IP из цепочки
+	let cleanIp = ip.split(',')[0].trim()
+	if (cleanIp.includes(':')) {
+		cleanIp = cleanIp.split(':')[0] // Убираем порт для IPv4
+	}
+	return crypto
+		.createHash('sha256')
+		.update(cleanIp)
+		.digest('hex')
+		.substring(0, 12)
+}
 
 // Функция резервного логирования в файл (Защита ИБ)
 const logToFile = message => {
@@ -104,7 +121,7 @@ router.post('/', requireRole('admin', 'investigator'), async (req, res) => {
 			})
 			.catch(console.error)
 
-		const logMsg = `[CREATE] ${req.user.email} создал инцидент #${newIncident.id} | Тип: ${type} | Уровень: ${severity} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Локация: ${location} | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
+		const logMsg = `[CREATE] [IP: ${hashIp(req)}] ${req.user.email} создал инцидент #${newIncident.id} | Тип: ${type} | Уровень: ${severity} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Локация: ${location} | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
 		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
 			logMsg,
 			req.user.email,
@@ -182,7 +199,7 @@ router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
 			})
 			.catch(console.error)
 
-		const logMsg = `[UPDATE] ${req.user.email} обновил инцидент #${req.params.id} | Статус: ${status} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
+		const logMsg = `[UPDATE] [IP: ${hashIp(req)}] ${req.user.email} обновил инцидент #${req.params.id} | Статус: ${status} | Риск: ${risk.risk_score}/100 (${risk.risk_level}) | Назначен: ${assignedTo || 'НЕ НАЗНАЧЕН'}`
 		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
 			logMsg,
 			req.user.email,
@@ -227,7 +244,7 @@ router.delete(
 
 			await pool.query('DELETE FROM incidents WHERE id = $1', [req.params.id])
 
-			const logMsg = `[DELETE] ${req.user.email} удалил инцидент #${req.params.id} | Тип: ${inc.type} | Риск был: ${inc.risk_score || 0}/100`
+			const logMsg = `[DELETE] [IP: ${hashIp(req)}] ${req.user.email} удалил инцидент #${req.params.id} | Тип: ${inc.type} | Риск был: ${inc.risk_score || 0}/100`
 			await pool.query(
 				'INSERT INTO logs (action, user_email) VALUES ($1, $2)',
 				[logMsg, req.user.email],

@@ -22,6 +22,9 @@ const Detail = () => {
 	const [newComment, setNewComment] = useState('')
 	const [loadingComments, setLoadingComments] = useState(false)
 
+	// Состояние для истории изменений
+	const [history, setHistory] = useState([])
+
 	useEffect(() => {
 		api
 			.get('/api/incidents')
@@ -40,6 +43,19 @@ const Detail = () => {
 		api
 			.get(`/api/incidents/${id}/comments`)
 			.then(res => setComments(res.data))
+			.catch(console.error)
+	}, [id])
+
+	// Загрузка истории изменений
+	useEffect(() => {
+		api
+			.get('/api/admin/logs')
+			.then(res => {
+				const incidentHistory = res.data
+					.filter(log => log.action && log.action.includes(`#${id}`))
+					.slice(0, 10)
+				setHistory(incidentHistory)
+			})
 			.catch(console.error)
 	}, [id])
 
@@ -122,6 +138,9 @@ const Detail = () => {
 
 --- КОММЕНТАРИИ ---
 ${comments.length > 0 ? comments.map(c => `[${new Date(c.created_at).toLocaleString()}] ${c.author_email}: ${c.comment_text}`).join('\n') : 'Комментариев нет'}
+
+--- ИСТОРИЯ ИЗМЕНЕНИЙ ---
+${history.length > 0 ? history.map(h => `[${new Date(h.created_at).toLocaleString()}] ${h.action}`).join('\n') : 'История пуста'}
 
 Дата создания:    ${new Date(incident.created_at).toLocaleString()}
 Отчёт сгенерирован: ${new Date().toLocaleString()}
@@ -512,6 +531,54 @@ ${comments.length > 0 ? comments.map(c => `[${new Date(c.created_at).toLocaleStr
 									{loadingComments ? '...' : 'ОТПРАВИТЬ'}
 								</button>
 							</div>
+						</div>
+
+						{/* БЛОК ИСТОРИИ ИЗМЕНЕНИЙ */}
+						<div
+							className='form-divider'
+							style={{ margin: '30px 0 24px' }}
+						></div>
+						<div className='form-card' style={{ padding: '24px' }}>
+							<div className='form-label' style={{ marginBottom: '16px' }}>
+								ИСТОРИЯ ИЗМЕНЕНИЙ
+							</div>
+							{history.length === 0 ? (
+								<div className='empty-state'>История пока пуста</div>
+							) : (
+								<div
+									style={{
+										display: 'flex',
+										flexDirection: 'column',
+										gap: '10px',
+									}}
+								>
+									{history.map((log, i) => (
+										<div
+											key={log.id || i}
+											style={{
+												display: 'flex',
+												gap: '12px',
+												padding: '10px 0',
+												borderBottom: '1px dashed var(--border)',
+												fontFamily: 'var(--font-mono)',
+												fontSize: '11px',
+											}}
+										>
+											<div
+												style={{
+													color: 'var(--text-muted)',
+													minWidth: '140px',
+												}}
+											>
+												{new Date(log.created_at).toLocaleString()}
+											</div>
+											<div style={{ color: 'var(--accent)', flex: 1 }}>
+												{log.action}
+											</div>
+										</div>
+									))}
+								</div>
+							)}
 						</div>
 					</>
 				)}

@@ -1,5 +1,6 @@
 const express = require('express')
 const router = express.Router()
+const crypto = require('crypto')
 const pool = require('../db')
 const { authMiddleware, requireAdmin } = require('../middleware/auth')
 const fs = require('fs')
@@ -11,6 +12,22 @@ const path = require('path')
  *   name: Admin
  *   description: Администрирование (пользователи, журнал действий)
  */
+
+// Хеширование IP-адреса для безопасности
+const hashIp = req => {
+	const ip =
+		req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'
+	// Убираем порт, если есть, и берем только первый IP из цепочки
+	let cleanIp = ip.split(',')[0].trim()
+	if (cleanIp.includes(':')) {
+		cleanIp = cleanIp.split(':')[0] // Убираем порт для IPv4
+	}
+	return crypto
+		.createHash('sha256')
+		.update(cleanIp)
+		.digest('hex')
+		.substring(0, 12)
+}
 
 router.use(authMiddleware, requireAdmin)
 
@@ -83,8 +100,9 @@ router.put('/users/:id/role', async (req, res) => {
 			role,
 			req.params.id,
 		])
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [
-			`Админ изменил роль пользователю ID ${req.params.id} на ${role}`,
+		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
+			`[ROLE_CHANGE] [IP: ${hashIp(req)}] Админ ${req.user.email} изменил роль пользователя ID ${req.params.id} на ${role}`,
+			req.user.email,
 		])
 		res.json({ message: 'Роль обновлена' })
 	} catch (err) {
@@ -126,9 +144,17 @@ router.delete('/users/:id', async (req, res) => {
 				.json({ error: 'Нельзя удалить свой собственный аккаунт' })
 		}
 
+		// Получаем информацию о пользователе перед удалением
+		const userResult = await pool.query(
+			'SELECT email FROM users WHERE id = $1',
+			[req.params.id],
+		)
+		const deletedUserEmail = userResult.rows[0]?.email || `ID ${req.params.id}`
+
 		await pool.query('DELETE FROM users WHERE id = $1', [req.params.id])
-		await pool.query('INSERT INTO logs (action) VALUES ($1)', [
-			`Админ удалил пользователя с ID ${req.params.id}`,
+		await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
+			`[DELETE_USER] [IP: ${hashIp(req)}] Админ ${req.user.email} удалил пользователя ${deletedUserEmail}`,
+			req.user.email,
 		])
 		res.json({ message: 'Пользователь удален' })
 	} catch (err) {
