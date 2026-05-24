@@ -182,7 +182,7 @@ const Home = () => {
 									<div className='incident-type'>{inc.type}</div>
 									<div className='incident-meta'>
 										<span className='meta-tag'>
-											{new Date(inc.date).toLocaleDateString()}
+											{new Date(inc.created_at).toLocaleDateString()}
 										</span>
 										<span className='meta-tag'>{inc.location}</span>
 									</div>
