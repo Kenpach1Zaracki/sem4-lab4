@@ -32,12 +32,11 @@ api.interceptors.response.use(
 			window.location.href = '/login'
 		}
 
-		// Ошибка 403 - нет прав доступа (ТРЕБОВАНИЕ ЛАБЫ)
-		if (error.response?.status === 403) {
-			if (globalShowToast) {
-				globalShowToast('Отказано в доступе. Недостаточно прав!', 'error')
-			}
-		}
+		// 403 — просто не даём доступ, без всплывашек
+		// Это ожидаемое поведение для пользователей с ограниченными правами
+		// if (error.response?.status === 403) {
+		//   Ничего не показываем
+		// }
 
 		return Promise.reject(error)
 	},

@@ -10,7 +10,7 @@ const Timeline = () => {
 		api
 			.get('/api/analytics/timeline')
 			.then(res => setTimeline(res.data))
-			.catch(console.error)
+			.catch(() => {}) // молча игнорируем ошибку
 	}, [])
 
 	const maxCount = Math.max(...timeline.map(t => parseInt(t.count)), 1)
@@ -147,13 +147,13 @@ const Dashboard = () => {
 		api
 			.get('/api/analytics/summary')
 			.then(res => setData(res.data))
-			.catch(console.error)
+			.catch(() => {}) // молча игнорируем ошибку
 			.finally(() => setLoading(false))
 	}, [])
 
-	// Загрузка последних действий — только для admin и investigator
+	// Загрузка последних действий — только для admin
 	useEffect(() => {
-		if (user.role === 'admin' || user.role === 'investigator') {
+		if (user.role === 'admin') {
 			api
 				.get('/api/admin/logs')
 				.then(res => setLogs(res.data.slice(0, 5)))
@@ -175,7 +175,7 @@ const Dashboard = () => {
 				document.body.removeChild(link)
 				window.URL.revokeObjectURL(url)
 			})
-			.catch(err => console.error('Ошибка экспорта:', err))
+			.catch(() => {}) // молча игнорируем ошибку
 	}
 
 	if (loading)
@@ -448,8 +448,8 @@ const Dashboard = () => {
 				<Timeline />
 			</div>
 
-			{/* ПОСЛЕДНИЕ ДЕЙСТВИЯ — ТОЛЬКО ДЛЯ ADMIN И INVESTIGATOR */}
-			{(user.role === 'admin' || user.role === 'investigator') && (
+			{/* ПОСЛЕДНИЕ ДЕЙСТВИЯ — ТОЛЬКО ДЛЯ ADMIN */}
+			{user.role === 'admin' && (
 				<div
 					className='form-card'
 					style={{ padding: '24px', marginTop: '24px' }}
