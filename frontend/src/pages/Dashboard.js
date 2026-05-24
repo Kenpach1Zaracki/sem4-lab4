@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { getUser } from '../auth'
 
 const Timeline = () => {
 	const [timeline, setTimeline] = useState([])
@@ -140,6 +141,7 @@ const Dashboard = () => {
 	const [data, setData] = useState(null)
 	const [loading, setLoading] = useState(true)
 	const [logs, setLogs] = useState([])
+	const user = getUser()
 
 	useEffect(() => {
 		api
@@ -149,13 +151,15 @@ const Dashboard = () => {
 			.finally(() => setLoading(false))
 	}, [])
 
-	// Загрузка последних действий
+	// Загрузка последних действий — только для admin и investigator
 	useEffect(() => {
-		api
-			.get('/api/admin/logs')
-			.then(res => setLogs(res.data.slice(0, 5)))
-			.catch(console.error)
-	}, [])
+		if (user.role === 'admin' || user.role === 'investigator') {
+			api
+				.get('/api/admin/logs')
+				.then(res => setLogs(res.data.slice(0, 5)))
+				.catch(() => {}) // молча игнорируем ошибку
+		}
+	}, [user.role])
 
 	// Функция экспорта CSV
 	const handleExport = () => {
@@ -444,34 +448,39 @@ const Dashboard = () => {
 				<Timeline />
 			</div>
 
-			{/* ПОСЛЕДНИЕ ДЕЙСТВИЯ */}
-			<div className='form-card' style={{ padding: '24px', marginTop: '24px' }}>
-				<div className='form-label' style={{ marginBottom: '16px' }}>
-					ПОСЛЕДНИЕ ДЕЙСТВИЯ
+			{/* ПОСЛЕДНИЕ ДЕЙСТВИЯ — ТОЛЬКО ДЛЯ ADMIN И INVESTIGATOR */}
+			{(user.role === 'admin' || user.role === 'investigator') && (
+				<div
+					className='form-card'
+					style={{ padding: '24px', marginTop: '24px' }}
+				>
+					<div className='form-label' style={{ marginBottom: '16px' }}>
+						ПОСЛЕДНИЕ ДЕЙСТВИЯ
+					</div>
+					{logs.length === 0 ? (
+						<div className='empty-state'>Нет записей</div>
+					) : (
+						logs.map(log => (
+							<div
+								key={log.id}
+								style={{
+									borderBottom: '1px dashed var(--border)',
+									padding: '8px 0',
+									fontFamily: 'var(--font-mono)',
+									fontSize: '11px',
+								}}
+							>
+								<span style={{ color: 'var(--text-muted)' }}>
+									[{new Date(log.created_at).toLocaleString()}]
+								</span>
+								<span style={{ color: 'var(--accent)', marginLeft: '8px' }}>
+									{log.action}
+								</span>
+							</div>
+						))
+					)}
 				</div>
-				{logs.length === 0 ? (
-					<div className='empty-state'>Нет записей</div>
-				) : (
-					logs.map(log => (
-						<div
-							key={log.id}
-							style={{
-								borderBottom: '1px dashed var(--border)',
-								padding: '8px 0',
-								fontFamily: 'var(--font-mono)',
-								fontSize: '11px',
-							}}
-						>
-							<span style={{ color: 'var(--text-muted)' }}>
-								[{new Date(log.created_at).toLocaleString()}]
-							</span>
-							<span style={{ color: 'var(--accent)', marginLeft: '8px' }}>
-								{log.action}
-							</span>
-						</div>
-					))
-				)}
-			</div>
+			)}
 		</div>
 	)
 }
