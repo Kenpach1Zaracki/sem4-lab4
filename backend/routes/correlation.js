@@ -35,4 +35,22 @@ router.put(
 	},
 )
 
+// DELETE /api/correlation/alerts/:id
+router.delete('/alerts/:id', requireRole('admin'), async (req, res) => {
+	try {
+		// Сначала удаляем связи алерта с инцидентами
+		await pool.query(
+			'DELETE FROM correlation_alert_incidents WHERE alert_id = $1',
+			[req.params.id],
+		)
+		// Затем удаляем сам алерт
+		await pool.query('DELETE FROM correlation_alerts WHERE id = $1', [
+			req.params.id,
+		])
+		res.json({ message: 'Алерт удалён' })
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
+})
+
 module.exports = router

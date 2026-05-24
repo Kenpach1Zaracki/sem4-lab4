@@ -3,7 +3,6 @@ const pool = require('../db')
 async function correlateIncident(incident) {
 	const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
 
-	// Ищем похожие инциденты за последний час (только такой же type + location)
 	const related = await pool.query(
 		`
     SELECT * FROM incidents 
@@ -16,7 +15,6 @@ async function correlateIncident(incident) {
 		[incident.id, oneHourAgo, incident.type, incident.location],
 	)
 
-	// Если нет похожих — не создаём алерт
 	if (related.rows.length === 0) return null
 
 	const allIncidents = [incident, ...related.rows]
@@ -27,9 +25,8 @@ async function correlateIncident(incident) {
 	else if (maxRisk >= 50) riskLevel = 'high'
 	else if (maxRisk >= 25) riskLevel = 'medium'
 
-	const title = `Массовый инцидент: ${incident.type} в ${incident.location}`
+	const title = `Группа: ${incident.type} (${incident.location})`
 
-	// Ищем существующий алерт по типу и локации
 	const existingAlert = await pool.query(
 		`
     SELECT * FROM correlation_alerts 
@@ -52,14 +49,11 @@ async function correlateIncident(incident) {
 				allIncidents.length,
 				maxRisk,
 				riskLevel,
-				`Обнаружена группа из ${allIncidents.length} связанных инцидентов типа "${incident.type}" в локации "${incident.location}". Максимальный риск: ${maxRisk}/100.`,
+				`Группа из ${allIncidents.length} инцидентов типа "${incident.type}" в "${incident.location}".`,
 				alert.id,
 			],
 		)
 	} else {
-		// Минимум 2 инцидента для создания нового алерта
-		if (allIncidents.length < 2) return null
-
 		const newAlert = await pool.query(
 			`
       INSERT INTO correlation_alerts (title, description, risk_score, risk_level, status, incident_count, first_seen, last_seen)
@@ -68,7 +62,7 @@ async function correlateIncident(incident) {
     `,
 			[
 				title,
-				`Обнаружена группа из ${allIncidents.length} связанных инцидентов типа "${incident.type}" в локации "${incident.location}". Максимальный риск: ${maxRisk}/100.`,
+				`Группа из ${allIncidents.length} инцидентов типа "${incident.type}" в "${incident.location}".`,
 				maxRisk,
 				riskLevel,
 				allIncidents.length,
@@ -78,7 +72,6 @@ async function correlateIncident(incident) {
 		alert = newAlert.rows[0]
 	}
 
-	// Привязываем инциденты к алерту
 	for (const inc of allIncidents) {
 		await pool.query(
 			`
@@ -90,9 +83,8 @@ async function correlateIncident(incident) {
 		)
 	}
 
-	// Логируем
 	await pool.query('INSERT INTO logs (action, user_email) VALUES ($1, $2)', [
-		`[CORRELATION] Создан/обновлён алерт #${alert.id}: "${title}" (${allIncidents.length} инцидентов, риск ${maxRisk}/100)`,
+		`[CORRELATION] Алерт #${alert.id}: "${title}" (${allIncidents.length} инцидентов)`,
 		'system',
 	])
 

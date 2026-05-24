@@ -164,6 +164,20 @@ const CorrelationAlerts = () => {
 											ЗАКРЫТЬ
 										</button>
 									)}
+									<button
+										className='btn btn-danger'
+										style={{ fontSize: '10px', padding: '4px 10px' }}
+										onClick={() => {
+											if (window.confirm('Удалить этот алерт?')) {
+												api
+													.delete(`/api/correlation/alerts/${alert.id}`)
+													.then(() => loadAlerts())
+													.catch(console.error)
+											}
+										}}
+									>
+										УДАЛИТЬ
+									</button>
 								</div>
 							</div>
 						</div>
