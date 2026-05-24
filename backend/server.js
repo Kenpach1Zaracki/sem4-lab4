@@ -10,6 +10,14 @@ dotenv.config()
 
 const app = express()
 
+// ─── ПРОСТОЙ ТЕСТОВЫЙ РОУТ (без авторизации, ДО всех middleware) ───
+app.get('/api/health', (req, res) => {
+	res.json({
+		status: 'ok',
+		message: 'Сервер работает! Risk Calculator активен.',
+	})
+})
+
 // ─── SWAGGER НАСТРОЙКИ (АВТОМАТИЧЕСКАЯ ДОКУМЕНТАЦИЯ API) ───
 const swaggerOptions = {
 	swaggerDefinition: {
@@ -30,7 +38,7 @@ const swaggerOptions = {
 		},
 		security: [{ bearerAuth: [] }],
 	},
-	apis: ['./routes/*.js'], // Парсит комментарии прямо из роутов
+	apis: ['./routes/*.js'],
 }
 const swaggerDocs = swaggerJsDoc(swaggerOptions)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
@@ -40,16 +48,15 @@ app.use(helmet())
 app.use(helmet.xssFilter())
 app.use(helmet.hidePoweredBy())
 app.use(cors())
-app.use(express.json())
+app.use(express.json()) // ← ДОЛЖНО БЫТЬ ПЕРЕД РОУТАМИ
 
 // Подключаем базу
 require('./db')
 
 // ─── RATE LIMITING ДЛЯ ЛОГИНА ───
-// Rate limiting: 5 попыток в минуту
 const loginLimiter = rateLimit({
-	windowMs: 1 * 60 * 1000, // 1 минута
-	max: 5, // 5 попыток
+	windowMs: 1 * 60 * 1000,
+	max: 5,
 	message: { error: 'Слишком много попыток входа. Попробуйте через минуту.' },
 	standardHeaders: true,
 	legacyHeaders: false,
@@ -58,7 +65,6 @@ const loginLimiter = rateLimit({
 // ─── ROUTES (МАРШРУТЫ) ───
 const authRoutes = require('./routes/auth')
 
-// Применяем rate limiting только к POST /login
 app.use('/api/auth', (req, res, next) => {
 	if (req.path === '/login' && req.method === 'POST') {
 		return loginLimiter(req, res, next)
@@ -70,14 +76,9 @@ app.use('/api/auth', authRoutes)
 app.use('/api/incidents', require('./routes/incidents'))
 app.use('/api/admin', require('./routes/admin'))
 app.use('/api/analytics', require('./routes/analytics'))
-app.use('/api', require('./routes/comments'))
-app.use('/api/dataset', require('./routes/dataset'))
 app.use('/api/correlation', require('./routes/correlation'))
-
-// ─── ПРОСТОЙ ТЕСТОВЫЙ РОУТ ───
-app.get('/api/health', (req, res) => {
-	res.json({ status: 'ok', message: 'Сервер работает!' })
-})
+app.use('/api/dataset', require('./routes/dataset'))
+app.use('/api', require('./routes/comments'))
 
 // ─── ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК ───
 app.use((err, req, res, next) => {
