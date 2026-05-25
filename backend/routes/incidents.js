@@ -88,6 +88,38 @@ router.get('/', async (req, res) => {
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, location, severity]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 example: "Утечка данных"
+ *               location:
+ *                 type: string
+ *                 example: "Серверная"
+ *               severity:
+ *                 type: string
+ *                 example: "Критический"
+ *               status:
+ *                 type: string
+ *                 example: "Открыт"
+ *               assignedTo:
+ *                 type: string
+ *                 example: "boss@plant.ru"
+ *     responses:
+ *       200:
+ *         description: Созданный инцидент с risk_score
+ *       400:
+ *         description: Отсутствуют обязательные поля
+ *       401:
+ *         description: Требуется аутентификация
+ *       403:
+ *         description: Недостаточно прав
  */
 router.post('/', requireRole('admin', 'investigator'), async (req, res) => {
 	const { type, location, severity, status, assignedTo } = req.body
@@ -150,6 +182,43 @@ router.post('/', requireRole('admin', 'investigator'), async (req, res) => {
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, location, severity]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 example: "Утечка данных"
+ *               location:
+ *                 type: string
+ *                 example: "Серверная"
+ *               severity:
+ *                 type: string
+ *                 example: "Критический"
+ *               status:
+ *                 type: string
+ *                 example: "В работе"
+ *               assignedTo:
+ *                 type: string
+ *                 example: "investigator@plant.ru"
+ *     responses:
+ *       200:
+ *         description: Обновлённый инцидент
+ *       400:
+ *         description: Отсутствуют обязательные поля
+ *       404:
+ *         description: Инцидент не найден
  */
 router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
 	const { type, location, severity, status, assignedTo } = req.body
@@ -228,6 +297,18 @@ router.put('/:id', requireRole('admin', 'investigator'), async (req, res) => {
  *     tags: [Incidents]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Инцидент удалён
+ *       404:
+ *         description: Инцидент не найден
  */
 router.delete(
 	'/:id',
