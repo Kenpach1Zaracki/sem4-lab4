@@ -5,6 +5,13 @@ const { authMiddleware } = require('../middleware/auth')
 
 router.use(authMiddleware)
 
+/**
+ * @swagger
+ * tags:
+ *   name: Comments
+ *   description: Комментарии к расследованию инцидентов
+ */
+
 // Защита: санитизация от XSS
 const sanitize = text => {
 	return text
@@ -18,7 +25,83 @@ const sanitize = text => {
 // Защита: ограничение длины
 const MAX_COMMENT_LENGTH = 1000
 
-// GET /api/incidents/:id/comments — получить комментарии к инциденту
+/**
+ * @swagger
+ * /api/incidents/{id}/comments:
+ *   get:
+ *     summary: Получить комментарии к инциденту
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID инцидента
+ *     responses:
+ *       200:
+ *         description: Список комментариев
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   incident_id:
+ *                     type: integer
+ *                   author_email:
+ *                     type: string
+ *                   comment_text:
+ *                     type: string
+ *                   created_at:
+ *                     type: string
+ *       401:
+ *         description: Требуется аутентификация
+ *       404:
+ *         description: Инцидент не найден
+ *
+ *   post:
+ *     summary: Добавить комментарий к инциденту (admin, investigator)
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID инцидента
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - comment_text
+ *             properties:
+ *               comment_text:
+ *                 type: string
+ *                 maxLength: 1000
+ *                 description: Текст комментария (проходит XSS-санитизацию)
+ *     responses:
+ *       201:
+ *         description: Комментарий добавлен
+ *       400:
+ *         description: Текст комментария обязателен или превышает лимит
+ *       401:
+ *         description: Требуется аутентификация
+ *       403:
+ *         description: Недостаточно прав (user не может комментировать, investigator только назначенные инциденты)
+ *       404:
+ *         description: Инцидент не найден
+ */
 router.get('/incidents/:id/comments', async (req, res) => {
 	try {
 		const result = await pool.query(
@@ -31,16 +114,13 @@ router.get('/incidents/:id/comments', async (req, res) => {
 	}
 })
 
-// POST /api/incidents/:id/comments — добавить комментарий
 router.post('/incidents/:id/comments', async (req, res) => {
 	let { comment_text } = req.body
 
-	// Проверка на наличие текста
 	if (!comment_text || !comment_text.trim()) {
 		return res.status(400).json({ error: 'Текст комментария обязателен' })
 	}
 
-	// Защита: обрезаем длину
 	if (comment_text.length > MAX_COMMENT_LENGTH) {
 		return res.status(400).json({
 			error: `Максимальная длина комментария: ${MAX_COMMENT_LENGTH} символов`,
@@ -48,7 +128,6 @@ router.post('/incidents/:id/comments', async (req, res) => {
 	}
 
 	try {
-		// Проверяем права на инцидент
 		const incident = await pool.query('SELECT * FROM incidents WHERE id = $1', [
 			req.params.id,
 		])
@@ -58,17 +137,14 @@ router.post('/incidents/:id/comments', async (req, res) => {
 
 		const inc = incident.rows[0]
 
-		// investigator может комментировать только назначенные ему
 		if (req.user.role === 'investigator' && inc.assignedTo !== req.user.email) {
 			return res.status(403).json({ error: 'Вы не назначены на этот инцидент' })
 		}
 
-		// user не может комментировать вообще
 		if (req.user.role === 'user') {
 			return res.status(403).json({ error: 'Недостаточно прав' })
 		}
 
-		// Защита: санитизация от XSS
 		comment_text = sanitize(comment_text.trim())
 
 		const result = await pool.query(

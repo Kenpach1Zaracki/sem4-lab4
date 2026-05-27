@@ -4,12 +4,57 @@ const pool = require('../db')
 const { authMiddleware, requireRole } = require('../middleware/auth')
 const { calculateRisk } = require('../utils/riskCalculator')
 const multer = require('multer')
-const csv = require('csv-parse')
 const upload = multer({ storage: multer.memoryStorage() })
 
 router.use(authMiddleware)
 
-// POST /api/dataset/import — импорт CSV
+/**
+ * @swagger
+ * tags:
+ *   name: Dataset
+ *   description: Импорт и экспорт инцидентов в CSV
+ */
+
+/**
+ * @swagger
+ * /api/dataset/import:
+ *   post:
+ *     summary: Импорт инцидентов из CSV-файла (admin, investigator)
+ *     tags: [Dataset]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV-файл с колонками type, location, severity, status, assignedTo
+ *     responses:
+ *       200:
+ *         description: Результат импорта
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 imported:
+ *                   type: integer
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Неверный формат файла или отсутствуют обязательные колонки
+ *       401:
+ *         description: Требуется аутентификация
+ *       403:
+ *         description: Недостаточно прав
+ */
 router.post(
 	'/import',
 	requireRole('admin', 'investigator'),
@@ -23,7 +68,6 @@ router.post(
 			const content = req.file.buffer.toString('utf-8')
 			const rows = content.split('\n').filter(line => line.trim())
 
-			// Пропускаем заголовок
 			const header = rows[0].toLowerCase()
 			if (
 				!header.includes('type') ||
@@ -50,8 +94,8 @@ router.post(
 					const risk = calculateRisk({ type, location, severity })
 					await pool.query(
 						`INSERT INTO incidents (type, location, severity, status, "assignedTo", created_by, 
-           risk_score, risk_level, detection_reason, is_suspicious, analyzed_at) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+             risk_score, risk_level, detection_reason, is_suspicious, analyzed_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 						[
 							type,
 							location,
@@ -87,7 +131,25 @@ router.post(
 	},
 )
 
-// GET /api/dataset/export — экспорт всех инцидентов в CSV
+/**
+ * @swagger
+ * /api/dataset/export:
+ *   get:
+ *     summary: Экспорт всех инцидентов в CSV
+ *     tags: [Dataset]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: CSV-файл со всеми инцидентами
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Требуется аутентификация
+ */
 router.get('/export', async (req, res) => {
 	try {
 		const result = await pool.query('SELECT * FROM incidents ORDER BY id DESC')
@@ -112,7 +174,25 @@ router.get('/export', async (req, res) => {
 	}
 })
 
-// GET /api/dataset/sample — скачать пример CSV
+/**
+ * @swagger
+ * /api/dataset/sample:
+ *   get:
+ *     summary: Скачать пример CSV-файла для импорта
+ *     tags: [Dataset]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Пример CSV с правильной структурой
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Требуется аутентификация
+ */
 router.get('/sample', async (req, res) => {
 	const sample = `type,location,severity,status,assignedTo
 Утечка данных,Серверная,Критический,Открыт,investigator@plant.ru
